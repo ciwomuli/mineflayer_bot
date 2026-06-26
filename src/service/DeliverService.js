@@ -210,6 +210,7 @@ class DeliverService {
         await this.bot.fakePlayerService.spawnFakePlayer(fakePlayerName, pos);
         this.using_delivers.push(fakePlayerName);
         this.bot.whisper(username, `已将 ${quantity - unfetchedQuantity}/${quantity} 个 ${id} 交付给你，请在假人 ${fakePlayerName} 处领取`);
+        this.bot.chat(`/tellraw ${username} ["",{"text":"记得【"},{"text":"杀死假人","bold":true,"underlined":true,"color":"dark_red","clickEvent":{"action":"run_command","value":"/player ${fakePlayerName} kill"}},{"text":"】"}]`)
         this.delivers.push(fakePlayerName);
         await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
     }

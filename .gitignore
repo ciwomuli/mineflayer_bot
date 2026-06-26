@@ -6,3 +6,4 @@ data/*
 *.sqlite
 .env
 inventory.db
+config.js
