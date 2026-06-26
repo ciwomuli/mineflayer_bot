@@ -1,0 +1,8 @@
+node_modules/
+data/*
+!data/requests/
+!data/requests/example.txt
+*.db
+*.sqlite
+.env
+inventory.db
