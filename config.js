@@ -2,18 +2,20 @@ const config = {
     bots: [
         {
             type: "inventory",
-            username: "",
-            host: "",
+            username: "Elysia",
+            host: "frp.uestc.world",
             port: 25565,
             loginDelay: 1000,
             startupCommands: [
-                "/server survival"
+                "/login 123456",
+                "/server mirror",
             ],
             config: {
                 restockGoldenCarrots: true,
                 shulkerBoxThereHold: 512,
                 center: { x: -301, y: 78, z: 1174 },
-                centerFacing: { yaw: -90, pitch: 0 },
+                centerFacing: { yaw: -90, pitch: 30 },
+                dropPoint: { x: -297, y: 77, z: 1174 },
                 areas: {
                     west: [
                         { x: -311, y: 76, z: 1180 },
@@ -26,6 +28,20 @@ const config = {
                     north: [
                         { x: -303, y: 75, z: 1160 },
                         { x: -291, y: 77, z: 1111 },
+                    ],
+                },
+                walkPath: {
+                    west: [
+                        { y: 78, z: 1173 },
+                        { y: 78, z: 1175 },
+                    ],
+                    east: [
+                        { y: 78, z: 1173 },
+                        { y: 78, z: 1175 },
+                    ],
+                    north: [
+                        { x: -299, y: 77, },
+                        { x: -295, y: 77, }
                     ],
                 },
                 gotoPathTimeoutMs: 30000,

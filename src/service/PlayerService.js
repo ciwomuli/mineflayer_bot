@@ -1,6 +1,21 @@
+const { gotoNear } = require("../goto");
+const { sleep } = require("../utils");
+const Vec3 = require("vec3");
 class PlayerService {
-    constructor(bot) {
+    constructor(bot, config) {
         this.bot = bot;
+        this.config = config;
+        this.bot.on('chat', (username, message) => {
+            if (message == "!clear") {
+                if (this.bot.setBusy()) {
+                    console.log(`[PlayerService] ${this.bot.username} 正在忙碌，跳过清理背包`);
+                    return;
+                }
+                this.clearInventory().finally(() => {
+                    this.bot.unsetBusy();
+                });
+            }
+        });
     }
     async getPlayerPosition(name) {
         return new Promise((resolve) => {
@@ -32,6 +47,23 @@ class PlayerService {
                 resolve(false);
             }, 20000);
         });
+    }
+    async clearInventory() {
+        console.log(`[清理] ${this.bot.username} 开始清理背包`);
+        const result = await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 0);
+        if (!result) {
+            console.log(`[清理] 无法到达中心点 (${this.config.center.x}, ${this.config.center.y}, ${this.config.center.z})`);
+            return;
+        }
+        await this.bot.lookAt(new Vec3(this.config.dropPoint.x, this.config.dropPoint.y, this.config.dropPoint.z), true);
+        await sleep(1000);
+        for (let i = 9; i < 9 + 27; i++) {
+            if (this.bot.inventory.slots[i]) {
+                console.log(`[清理] ${this.bot.username} 扔掉物品: ${this.bot.inventory.slots[i].name} x${this.bot.inventory.slots[i].count}`);
+                await this.bot.tossStack(this.bot.inventory.slots[i])
+                await sleep(100);
+            }
+        }
     }
 }
 

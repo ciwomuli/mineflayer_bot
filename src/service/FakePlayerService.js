@@ -98,7 +98,7 @@ class FakePlayerService {
             }
 
         } catch (err) {
-            console.error(`[FakePlayerService] 打开假人容器失败: ${err.message}`);
+            console.error(`[FakePlayerService] 打开假人容器失败: ${err.stack}`);
         }
     }
 }

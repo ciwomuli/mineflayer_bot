@@ -10,6 +10,7 @@ const { DeliverService } = require('../../service/DeliverService');
 const { KeepAliveService } = require('../../service/KeepAliveService');
 const { PlayerService } = require('../../service/PlayerService');
 const { FakePlayerService } = require('../../service/FakePlayerService');
+const { TaskQueueService } = require('../../service/TaskQueueService');
 const { sleep } = require('../../utils');
 const { initPathfinder } = require('../../goto');
 class InventoryBot {
@@ -20,7 +21,6 @@ class InventoryBot {
         this.loginDelay = options.loginDelay || 1000;
         this.startupCommands = options.startupCommands || [];
         this.config = options.config || {};
-        this.busy = false;
         this.bot = null;
     }
     async initBot() {
@@ -33,9 +33,21 @@ class InventoryBot {
         this.bot.containerService = new ContainerService(this.bot, this.config);
         this.bot.deliverService = new DeliverService(this.bot, this.config);
         this.bot.keepAliveService = new KeepAliveService(this.bot, this.config);
-        this.bot.playerService = new PlayerService(this.bot);
+        this.bot.playerService = new PlayerService(this.bot, this.config);
         this.bot.fakePlayerService = new FakePlayerService(this.bot, this.config);
-        this.bot.busy = false;
+        this.bot.taskQueueService = new TaskQueueService(this.bot);
+        const buffer = new SharedArrayBuffer(16);
+        const uint8 = new Uint8Array(buffer);
+        Atomics.exchange(uint8, 0, 0);
+        this.bot.setBusy = function () {
+            return Atomics.exchange(uint8, 0, 1);
+        }
+        this.bot.unsetBusy = function (processQueue = true) {
+            Atomics.exchange(uint8, 0, 0);
+            if (processQueue) {
+                void this.taskQueueService.processQueue();
+            }
+        };
         // ---------- 事件绑定 ----------
 
         this.bot.on('login', async () => {

@@ -32,16 +32,15 @@ class ContainerService {
             if (message !== '!scan') {
                 return;
             }
-            if (this.busy) {
+            if (this.bot.setBusy()) {
                 this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 正在忙碌，无法执行扫描命令`);
                 console.log(`[InventoryBot] ${this.bot.username} 正在忙碌，无法执行扫描命令`);
                 return;
             }
-            this.busy = true;
             this.bot.containerService.startScanning().catch(err => {
                 console.error(`[InventoryBot] ${this.bot.username} 扫描失败:`, err);
             }).finally(() => {
-                this.busy = false;
+                this.bot.unsetBusy();
             });
         });
     }
@@ -212,12 +211,6 @@ class ContainerService {
             'gray_shulker_box', 'light_gray_shulker_box', 'cyan_shulker_box', 'purple_shulker_box',
             'blue_shulker_box', 'brown_shulker_box', 'green_shulker_box', 'red_shulker_box', 'black_shulker_box'
         ]);
-    }
-
-    async clearInventory() {
-        //   const result = await gotoNear(this.bot, new Vec3(config.center.x, config.center.y, config.center.z), 1);
-        //     if (!result) console.log(`[清理] 无法到达中心点 (${config.center.x}, ${config.center.y}, ${config.center.z})`);
-        //     const inventory = this.bot.inventory;
     }
 }
 

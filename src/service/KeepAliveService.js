@@ -8,25 +8,19 @@ class KeepAliveService {
             if (this.bot.health == 20) {
                 return;
             }
-            if (this.bot.busy) {
-                console.log(`[KeepAliveService] ${this.bot.username} 正在忙碌，跳过自动回血`);
-                return;
-            }
-            this.bot.busy = true;
-            this.eatGoldenCarrots().finally(() => {
-                this.bot.busy = false;
+            this.bot.taskQueueService.addTask(async () => {
+                await this.eatGoldenCarrots();
+            }, "eat_golden_carrots", true).catch(err => {
+                console.error(`[KeepAliveService] ${this.bot.username} 吃金胡萝卜失败:`, err);
             });
         });
         this.bot.on('chat', (username, message) => {
             if (username === this.bot.username) return;
             if (message == "!eat") {
-                if (this.bot.busy) {
-                    console.log(`[KeepAliveService] ${this.bot.username} 正在忙碌，跳过手动回血`);
-                    return;
-                }
-                this.bot.busy = true;
-                this.eatGoldenCarrots().finally(() => {
-                    this.bot.busy = false;
+                this.bot.taskQueueService.addTask(async () => {
+                    await this.eatGoldenCarrots();
+                }, "eat_golden_carrots", true).catch(err => {
+                    console.error(`[KeepAliveService] ${this.bot.username} 吃金胡萝卜失败:`, err);
                 });
             }
         });

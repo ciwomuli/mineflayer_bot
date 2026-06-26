@@ -14,17 +14,10 @@ class DeliverService {
         this.using_delivers = [];
         this.bot.on('chat', (username, message) => {
             if (message.startsWith('!deliver') || message.startsWith('!dv')) {
-                if (this.busy) {
-                    this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 正在忙碌，无法执行交付命令`);
-                    console.log(`[InventoryBot] ${this.bot.username} 正在忙碌，无法执行交付命令`);
-                    return;
-                }
-                this.busy = true;
                 const parts = message.split(' ');
                 if (parts.length < 3) {
                     this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令格式错误，请使用: !deliver <物品ID> <数量>`);
                     console.log(`[InventoryBot] ${this.bot.username} 交付命令格式错误，请使用: !deliver <物品ID> <数量>`);
-                    this.busy = false;
                     return;
                 }
                 let itemId = parts[1];
@@ -32,7 +25,6 @@ class DeliverService {
                 if (isNaN(quantity) || quantity <= 0) {
                     this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令数量错误，请使用正整数`);
                     console.log(`[InventoryBot] ${this.bot.username} 交付命令数量错误，请使用正整数`);
-                    this.busy = false;
                     return;
                 }
                 if (!itemId.startsWith('minecraft:')) {
@@ -40,7 +32,6 @@ class DeliverService {
                     if (result.length === 0) {
                         this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令物品ID错误，未在数据库中找到 ${itemId}`);
                         console.log(`[InventoryBot] ${this.bot.username} 交付命令物品ID错误，未在数据库中找到 ${itemId}`);
-                        this.busy = false;
                         return;
                     }
                     itemId = "minecraft:" + result[0].minecraft_id;
@@ -48,13 +39,17 @@ class DeliverService {
                 if (!db.getItemTotal(itemId)) {
                     this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令物品ID错误，未在数据库中找到 ${itemId}`);
                     console.log(`[InventoryBot] ${this.bot.username} 交付命令物品ID错误，未在数据库中找到 ${itemId}`);
-                    this.busy = false;
+                    return;
+                }
+                if (this.bot.setBusy()) {
+                    this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 正在忙碌，无法执行交付命令`);
+                    console.log(`[InventoryBot] ${this.bot.username} 正在忙碌，无法执行交付命令`);
                     return;
                 }
                 this.DeliverItem(username, itemId, quantity).catch(err => {
                     console.error(`[DeliverService] ${this.bot.username} 交付失败:`, err);
                 }).finally(() => {
-                    this.busy = false;
+                    this.bot.unsetBusy();
                 });
             }
         });
@@ -62,8 +57,19 @@ class DeliverService {
             const index = this.using_delivers.indexOf(player.username);
             if (index !== -1) {
                 this.using_delivers.splice(index, 1);
+                const name = player.username;
                 this.delivers.push(player.username);
                 console.log(`[DeliverService] 玩家 ${player.username} 离开，释放假人`);
+                this.bot.taskQueueService.addTask(async () => {
+                    const player = await this.bot.fakePlayerService.spawnFakePlayer(name);
+                    await sleep(2000);
+                    await this.bot.fakePlayerService.cleanFakePlayerInventory(player);
+                    await this.bot.fakePlayerService.killFakePlayer(player.username);
+                    await sleep(2000);
+                    await this.bot.playerService.clearInventory();
+                }, "release_fake_player", false).catch(err => {
+                    console.error(`[DeliverService] 释放假人 ${name} 失败:`, err);
+                });
             }
         });
     }
@@ -156,7 +162,7 @@ class DeliverService {
             return { quantity, usedSlots: [] };
         } else if (containers.length == 1) {
             const container = containers[0];
-            await gotoNear(this.bot, container.x, container.y, container.z, 5);
+            await this.goto(container.x, container.y, container.z);
             const block = this.bot.world.getBlock(new Vec3(container.x, container.y, container.z));
             if (!block || !this.bot.containerService.getContainerTypes().has(block.name)) {
                 console.log(`[DeliverService] 容器 (${container.x}, ${container.y}, ${container.z}) 不存在`);
@@ -170,13 +176,13 @@ class DeliverService {
             const block_shulker = this.bot.world.getBlock(new Vec3(container_shulker.x, container_shulker.y, container_shulker.z));
             if (block_shulker && this.bot.containerService.getContainerTypes().has(block_shulker.name)
                 && quantity > this.config.shulkerBoxThereHold && shulkerBox) {
-                await gotoNear(this.bot, container_shulker.x, container_shulker.y, container_shulker.z, 5);
+                await this.goto(container_shulker.x, container_shulker.y, container_shulker.z);
                 ({ quantity, usedSlots } = await this.fetchItemWithContainer(block_shulker, id, quantity, shulkerBox, false));
             }
             while (quantity > 0) {
                 const rawQuantity = quantity;
                 if (block_item && this.bot.containerService.getContainerTypes().has(block_item.name)) {
-                    await gotoNear(this.bot, container_item.x, container_item.y, container_item.z, 5);
+                    await this.goto(container_item.x, container_item.y, container_item.z);
                     let usedSlots_tmp = [];
                     ({ quantity, usedSlots: usedSlots_tmp } = await this.fetchItemWithContainer(block_item, id, quantity, false, true));
                     usedSlots = usedSlots.concat(usedSlots_tmp);
@@ -213,6 +219,51 @@ class DeliverService {
         this.bot.chat(`/tellraw ${username} ["",{"text":"记得【"},{"text":"杀死假人","bold":true,"underlined":true,"color":"dark_red","clickEvent":{"action":"run_command","value":"/player ${fakePlayerName} kill"}},{"text":"】"}]`)
         this.delivers.push(fakePlayerName);
         await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
+    }
+    getStandPos(x, y, z) {
+        // 判断点是否属于某个区域
+        let matchedArea = null;
+        for (const [areaName, bounds] of Object.entries(this.config.areas)) {
+            const [p1, p2] = bounds;
+            const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+            const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+            const minZ = Math.min(p1.z, p2.z), maxZ = Math.max(p1.z, p2.z);
+            if (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ) {
+                matchedArea = areaName;
+                break;
+            }
+        }
+
+        // 不属于任何区域，直接返回原始坐标
+        if (!matchedArea) {
+            return { x, y, z };
+        }
+
+        // 寻找最近的 walkPath 点并补全缺失维度
+        const walkPath = this.config.walkPath[matchedArea];
+        if (!walkPath || walkPath.length === 0) {
+            return { x, y, z };
+        }
+
+        let nearestDist = Infinity;
+        let nearestPoint = null;
+
+        for (const wp of walkPath) {
+            const px = wp.x !== undefined ? wp.x : x;
+            const py = wp.y !== undefined ? wp.y : y;
+            const pz = wp.z !== undefined ? wp.z : z;
+            const dist = (px - x) ** 2 + (py - y) ** 2 + (pz - z) ** 2;
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestPoint = { x: px, y: py, z: pz };
+            }
+        }
+
+        return nearestPoint;
+    }
+    goto(x, y, z) {
+        const standPos = this.getStandPos(x, y, z);
+        return gotoNear(this.bot, standPos.x, standPos.y, standPos.z, 1);
     }
 
 }
