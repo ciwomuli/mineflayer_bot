@@ -27,7 +27,7 @@ async function gotoNear(bot, x, y, z, range, timeout = DEFAULT_TIMEOUT_MS) {
             resolve(true);
             return;
         }
-        console.log(`[gotoNear] 前往坐标 (${x}, ${y}, ${z})，范围 ${range}，超时 ${timeout}ms`);
+        // console.log(`[gotoNear] 前往坐标 (${x}, ${y}, ${z})，范围 ${range}，超时 ${timeout}ms`);
         const goal = new GoalNear(x, y, z, range);
 
         const onReached = (reachedGoal) => {

@@ -36,6 +36,13 @@ class InventoryBot {
         this.bot.playerService = new PlayerService(this.bot, this.config);
         this.bot.fakePlayerService = new FakePlayerService(this.bot, this.config);
         this.bot.taskQueueService = new TaskQueueService(this.bot);
+        setInterval(() => {
+            this.bot.taskQueueService.addTask(async () => {
+                this.bot.containerService.startScanning().catch(err => {
+                    console.error(`[InventoryBot] ${this.bot.username} 定时扫描失败:`, err);
+                }, "scan");
+            });
+        }, this.config.scanIntervalMs);
         const buffer = new SharedArrayBuffer(16);
         const uint8 = new Uint8Array(buffer);
         Atomics.exchange(uint8, 0, 0);

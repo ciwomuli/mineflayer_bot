@@ -8,7 +8,7 @@ const config = {
             loginDelay: 1000,
             startupCommands: [
                 "/login 123456",
-                "/server mirror",
+                "/server survival",
             ],
             config: {
                 restockGoldenCarrots: true,
@@ -45,7 +45,8 @@ const config = {
                     ],
                 },
                 gotoPathTimeoutMs: 30000,
-                deliverNum: 5
+                deliverNum: 5,
+                scanIntervalMs: 24 * 60 * 60 * 1000,
             }
         }
     ]

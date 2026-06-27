@@ -6,7 +6,7 @@ class PlayerService {
         this.bot = bot;
         this.config = config;
         this.bot.on('chat', (username, message) => {
-            if (message == "!clear") {
+            if (message == "!clearInventory") {
                 if (this.bot.setBusy()) {
                     console.log(`[PlayerService] ${this.bot.username} 正在忙碌，跳过清理背包`);
                     return;
