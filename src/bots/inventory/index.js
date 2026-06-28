@@ -24,6 +24,7 @@ class InventoryBot {
         this.config = options.config || {};
         this.version = options.version || '1.21.4';
         this.bot = null;
+        this.dailyScanTimer = null;
     }
     async initBot() {
         console.log(`[InventoryBot] 正在创建 Bot: ${this.username}`);
@@ -41,13 +42,6 @@ class InventoryBot {
         this.bot.fakePlayerService = new FakePlayerService(this.bot, this.config);
         this.bot.taskQueueService = new TaskQueueService(this.bot);
         this.bot.litematicaService = new LitematicaService(this.bot, this.config);
-        setInterval(() => {
-            this.bot.taskQueueService.addTask(async () => {
-                this.bot.containerService.startScanning().catch(err => {
-                    console.error(`[InventoryBot] ${this.bot.username} 定时扫描失败:`, err);
-                }, "scan");
-            });
-        }, this.config.scanIntervalMs);
         const buffer = new SharedArrayBuffer(16);
         const uint8 = new Uint8Array(buffer);
         Atomics.exchange(uint8, 0, 0);
@@ -60,6 +54,7 @@ class InventoryBot {
                 void this.taskQueueService.processQueue();
             }
         };
+        this.scheduleDailyScan();
         // ---------- 事件绑定 ----------
 
         this.bot.on('login', async () => {
@@ -98,6 +93,37 @@ class InventoryBot {
             this.bot.once('spawn', () => clearTimeout(timeout));
         });
     }
+
+    getNextDailyScanTime(now = new Date()) {
+        const next = new Date(now);
+        next.setHours(4, 0, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 1);
+        return next;
+    }
+
+    scheduleDailyScan() {
+        if (this.dailyScanTimer) clearTimeout(this.dailyScanTimer);
+
+        const now = new Date();
+        const nextScan = this.getNextDailyScanTime(now);
+        console.log(`[InventoryBot] ${this.username} 下一次定时扫描: ${nextScan.toLocaleString()}`);
+
+        this.dailyScanTimer = setTimeout(() => {
+            this.dailyScanTimer = null;
+            this.bot.taskQueueService.addTask(async () => {
+                try {
+                    await this.bot.containerService.startScanning();
+                } catch (err) {
+                    console.error(`[InventoryBot] ${this.bot.username} 定时扫描失败:`, err);
+                }
+            }, 'scan').catch(err => {
+                console.error(`[InventoryBot] ${this.bot.username} 添加定时扫描任务失败:`, err);
+            }).finally(() => {
+                this.scheduleDailyScan();
+            });
+        }, nextScan.getTime() - now.getTime());
+    }
+
     // async commandScan(args) {
     //     if (this.busy) {
     //         this.bot.say(`[InventoryBot] ${this.bot.username} 正在忙碌，无法执行扫描命令`);

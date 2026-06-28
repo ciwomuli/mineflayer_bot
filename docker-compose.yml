@@ -1,0 +1,22 @@
+services:
+  inventory-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:latest}
+    container_name: mineflayer-inventory-bot
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+      - type: bind
+        source: ./syncmatica
+        target: /app/syncmatica
+      - type: bind
+        source: ./placements.json
+        target: /app/placements.json
