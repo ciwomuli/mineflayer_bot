@@ -360,8 +360,8 @@ class LitematicaService {
 
     getSchematicPath(placement) {
         if (!this.config.syncMaticaPath) throw new Error('未配置 syncMaticaPath');
-        if (!placement || typeof placement.id !== 'string' || !placement.id) {
-            throw new Error('原理图缺少 id');
+        if (!placement || typeof placement.hash !== 'string' || !placement.hash) {
+            throw new Error('原理图缺少 hash');
         }
         return path.resolve(this.config.syncMaticaPath, `${placement.hash}.litematic`);
     }

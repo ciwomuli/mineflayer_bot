@@ -25,73 +25,142 @@ class InventoryBot {
         this.version = options.version || '1.21.4';
         this.bot = null;
         this.dailyScanTimer = null;
+        this.initialReconnectDelay = 30 * 1000;
+        this.maxReconnectDelay = 30 * 60 * 1000;
+        this.reconnectDelay = this.initialReconnectDelay;
+        this.reconnectTimer = null;
+        this.connectionPromise = null;
     }
     async initBot() {
+        if (this.connectionPromise) return this.connectionPromise;
+
+        this.connectionPromise = this.connect();
+        try {
+            await this.connectionPromise;
+        } catch (err) {
+            this.scheduleReconnect(err.message);
+            throw err;
+        } finally {
+            this.connectionPromise = null;
+        }
+    }
+
+    async connect() {
         console.log(`[InventoryBot] 正在创建 Bot: ${this.username}`);
-        this.bot = mineflayer.createBot({
+        const bot = mineflayer.createBot({
             host: this.host,
             port: this.port,
             username: this.username,
             version: this.version
         });
-        this.bot.version = this.version;
-        this.bot.containerService = new ContainerService(this.bot, this.config);
-        this.bot.deliverService = new DeliverService(this.bot, this.config);
-        this.bot.keepAliveService = new KeepAliveService(this.bot, this.config);
-        this.bot.playerService = new PlayerService(this.bot, this.config);
-        this.bot.fakePlayerService = new FakePlayerService(this.bot, this.config);
-        this.bot.taskQueueService = new TaskQueueService(this.bot);
-        this.bot.litematicaService = new LitematicaService(this.bot, this.config);
+        let disconnected = false;
+        this.bot = bot;
+        bot.version = this.version;
+        bot.containerService = new ContainerService(bot, this.config);
+        bot.deliverService = new DeliverService(bot, this.config);
+        bot.keepAliveService = new KeepAliveService(bot, this.config);
+        bot.playerService = new PlayerService(bot, this.config);
+        bot.fakePlayerService = new FakePlayerService(bot, this.config);
+        bot.taskQueueService = new TaskQueueService(bot);
+        bot.litematicaService = new LitematicaService(bot, this.config);
         const buffer = new SharedArrayBuffer(16);
         const uint8 = new Uint8Array(buffer);
         Atomics.exchange(uint8, 0, 0);
-        this.bot.setBusy = function () {
+        bot.setBusy = function () {
             return Atomics.exchange(uint8, 0, 1);
         }
-        this.bot.unsetBusy = function (processQueue = true) {
+        bot.unsetBusy = function (processQueue = true) {
             Atomics.exchange(uint8, 0, 0);
             if (processQueue) {
                 void this.taskQueueService.processQueue();
             }
         };
-        this.scheduleDailyScan();
         // ---------- 事件绑定 ----------
 
-        this.bot.on('login', async () => {
-            console.log(`[InventoryBot] ${this.bot.username} 已出生在游戏中`);
+        bot.on('login', async () => {
+            console.log(`[InventoryBot] ${bot.username} 已出生在游戏中`);
             await sleep(this.loginDelay);
             // 执行启动命令（如 /login 密码）
             for (const cmd of this.startupCommands) {
-                console.log(`[InventoryBot] ${this.bot.username} 执行启动命令: ${cmd}`);
-                this.bot.chat(cmd);
+                if (disconnected || bot !== this.bot) return;
+                console.log(`[InventoryBot] ${bot.username} 执行启动命令: ${cmd}`);
+                bot.chat(cmd);
                 await sleep(2000);
             }
-            console.log(`[InventoryBot] ${this.bot.username} 初始化完成，开始工作`);
-            initPathfinder(this.bot);
+            if (disconnected || bot !== this.bot) return;
+            console.log(`[InventoryBot] ${bot.username} 初始化完成，开始工作`);
+            initPathfinder(bot);
 
         });
 
-        this.bot.on('end', (reason) => {
-            console.log(`[InventoryBot] ${this.bot.username} 已断开: ${reason}`);
+        bot.on('spawn', () => {
+            if (bot !== this.bot) return;
+            this.reconnectDelay = this.initialReconnectDelay;
+            this.clearReconnectTimer();
+            this.scheduleDailyScan();
         });
 
-        this.bot.on('error', (err) => {
-            console.error(`[InventoryBot] ${this.bot.username} 错误:`, err);
+        bot.on('end', (reason) => {
+            disconnected = true;
+            if (bot !== this.bot) return;
+            console.log(`[InventoryBot] ${bot.username} 已断开: ${reason}`);
+            if (this.dailyScanTimer) {
+                clearTimeout(this.dailyScanTimer);
+                this.dailyScanTimer = null;
+            }
+            this.scheduleReconnect(reason);
         });
 
-        this.bot.on('kicked', (reason) => {
-            console.warn(`[InventoryBot] ${this.bot.username} 被踢出: ${reason}`);
+        bot.on('error', (err) => {
+            console.error(`[InventoryBot] ${bot.username} 错误:`, err);
+        });
+
+        bot.on('kicked', (reason) => {
+            console.warn(`[InventoryBot] ${bot.username} 被踢出: ${reason}`);
         });
         // ---------- 返回 Promise，等待 spawn ----------
         return new Promise((resolve, reject) => {
-            this.bot.once('spawn', () => resolve());
-            this.bot.once('error', (err) => reject(err));
+            let settled = false;
+            const finish = (callback, value) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
+                callback(value);
+            };
+
+            bot.once('spawn', () => finish(resolve));
+            bot.once('error', (err) => finish(reject, err));
+            bot.once('end', (reason) => {
+                finish(reject, new Error(`${bot.username} 连接已断开: ${reason}`));
+            });
             // 超时处理
             const timeout = setTimeout(() => {
-                reject(new Error(`${this.bot.username} 连接超时（30秒）`));
+                finish(reject, new Error(`${bot.username} 连接超时（30秒）`));
+                bot.end('connectTimeout');
             }, 30000);
-            this.bot.once('spawn', () => clearTimeout(timeout));
         });
+    }
+
+    scheduleReconnect(reason) {
+        if (this.reconnectTimer) return;
+
+        const delay = this.reconnectDelay;
+        console.log(`[InventoryBot] ${this.username} 将在 ${delay / 1000} 秒后重连（原因: ${reason}）`);
+        this.reconnectDelay = Math.min(delay * 2, this.maxReconnectDelay);
+
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.initBot().catch(err => {
+                console.error(`[InventoryBot] ${this.username} 重连失败:`, err);
+                this.scheduleReconnect(err.message);
+            });
+        }, delay);
+    }
+
+    clearReconnectTimer() {
+        if (!this.reconnectTimer) return;
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
     }
 
     getNextDailyScanTime(now = new Date()) {
