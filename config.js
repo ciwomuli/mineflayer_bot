@@ -13,6 +13,7 @@ const config = {
             ],
             config: {
                 restockGoldenCarrots: true,
+                firstJoinMessage: "欢迎使用库存管理 Bot，使用!dv <物品名称> <数量>享受快递服务，使用群里的魔改版REI可更高效地获取快递",
                 shulkerBoxThereHold: 512,
                 center: { x: -301, y: 78, z: 1174 },
                 centerFacing: { yaw: -90, pitch: 30 },

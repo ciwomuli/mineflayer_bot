@@ -1,10 +1,11 @@
 /**
  * 数据库模块
  * 
- * 使用 sql.js (纯 JS 实现的 SQLite) 管理三张表：
+ * 使用 sql.js (纯 JS 实现的 SQLite) 管理四张表：
  * 1. item_translations — 物品 ID 与中英文名称对照
  * 2. item_totals      — 每种物品的全局总数量
  * 3. containers       — 所有容器的位置及其中存储的物品
+ * 4. players          — 已经进入过服务器的玩家
  */
 
 const initSqlJs = require('sql.js');
@@ -69,6 +70,15 @@ async function init() {
             count        INTEGER NOT NULL DEFAULT 0,
             updated_at   TEXT,
             UNIQUE(x, y, z)
+        )
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS players (
+            player_id      TEXT PRIMARY KEY,
+            username       TEXT NOT NULL,
+            first_joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_joined_at  TEXT NOT NULL DEFAULT (datetime('now'))
         )
     `);
 
@@ -159,6 +169,41 @@ function searchByZhName(keyword) {
         name_en: row[1],
         name_zh: row[2]
     }));
+}
+
+// ===================== players 操作 =====================
+
+/**
+ * 记录玩家本次进入服务器，并返回他是否是首次进入。
+ * UUID 是稳定 ID；玩家改名后会同步更新 username。
+ *
+ * @param {string} playerId
+ * @param {string} username
+ * @returns {boolean} 是否为首次记录
+ */
+function recordPlayerJoin(playerId, username) {
+    if (!dbReady) throw new Error('数据库尚未初始化');
+    if (!playerId || !username) throw new Error('玩家 ID 和用户名不能为空');
+
+    db.run(
+        `INSERT OR IGNORE INTO players (player_id, username)
+         VALUES (?, ?)`,
+        [playerId, username]
+    );
+    const isFirstJoin = db.getRowsModified() > 0;
+
+    if (!isFirstJoin) {
+        db.run(
+            `UPDATE players
+             SET username = ?, last_joined_at = datetime('now')
+             WHERE player_id = ?`,
+            [username, playerId]
+        );
+    }
+
+    // 首次提示依赖这条记录持久化，不能只等待定时保存。
+    saveToDisk();
+    return isFirstJoin;
 }
 
 // ===================== item_totals 操作 =====================
@@ -421,6 +466,9 @@ module.exports = {
     // 翻译表
     getTranslation,
     searchByZhName,
+
+    // 玩家表
+    recordPlayerJoin,
 
     // 物品总量表
     updateItemTotal,

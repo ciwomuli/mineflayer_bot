@@ -2,8 +2,13 @@ class FakePlayerService {
     constructor(bot, config) {
         this.bot = bot;
         this.config = config;
+        this.fakePlayerNames = new Set();
+    }
+    isFakePlayer(name) {
+        return this.fakePlayerNames.has(name);
     }
     async spawnFakePlayer(name, pos = null) {
+        this.fakePlayerNames.add(name);
         return new Promise((resolve) => {
             if (pos) {
                 if (pos.dimension == "Nether") pos.dimension = "the_nether";
@@ -23,6 +28,7 @@ class FakePlayerService {
 
             const timer = setTimeout(() => {
                 this.bot.removeListener('playerJoined', onPlayerJoined);
+                this.fakePlayerNames.delete(name);
                 resolve(null);
             }, 20000);
 
@@ -37,6 +43,7 @@ class FakePlayerService {
                 if (player.username === name) {
                     clearTimeout(timer);
                     this.bot.removeListener('playerLeft', onPlayerLeft);
+                    this.fakePlayerNames.delete(name);
                     resolve(true);
                 }
             };

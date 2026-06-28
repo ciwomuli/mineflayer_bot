@@ -13,7 +13,7 @@ const db = require('./db');
 async function main() {
     console.log('[启动器] ========== 多 Bot 框架启动 ==========');
     console.log(`[启动器] 共配置 ${config.bots.length} 个 Bot`);
-    db.init();
+    await db.init();
 
     // 支持命令行过滤：node src/index.js --bots inventory
     const args = process.argv.slice(2);

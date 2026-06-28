@@ -1,10 +1,17 @@
 const { gotoNear } = require("../goto");
 const { sleep } = require("../utils");
+const db = require("../db");
 const Vec3 = require("vec3");
 class PlayerService {
     constructor(bot, config) {
         this.bot = bot;
         this.config = config;
+        this.trackingJoins = false;
+
+        this.bot.on('playerJoined', (player) => {
+            this.handlePlayerJoined(player);
+        });
+
         this.bot.on('chat', (username, message) => {
             if (message == "!clearInventory") {
                 if (this.bot.setBusy()) {
@@ -17,6 +24,33 @@ class PlayerService {
             }
         });
     }
+
+    startTrackingJoins() {
+        this.trackingJoins = true;
+    }
+
+    handlePlayerJoined(player) {
+        if (!this.trackingJoins || !player || player.username === this.bot.username) return;
+        if (this.bot.fakePlayerService?.isFakePlayer(player.username)) return;
+
+        const playerId = player.uuid;
+        if (!playerId) {
+            console.warn(`[PlayerService] 无法获取玩家 ${player.username} 的 UUID，跳过首次进入检查`);
+            return;
+        }
+
+        try {
+            if (!db.recordPlayerJoin(playerId, player.username)) return;
+
+            const template = this.config.firstJoinMessage || '欢迎首次来到服务器，{username}！';
+            const message = template.replaceAll('{username}', player.username);
+            this.bot.whisper(player.username, message);
+            console.log(`[PlayerService] 已记录首次进入的玩家 ${player.username} (${playerId})`);
+        } catch (err) {
+            console.error(`[PlayerService] 记录玩家 ${player.username} 失败:`, err);
+        }
+    }
+
     async getPlayerPosition(name) {
         return new Promise((resolve) => {
             const onChat = (jsonMsg, position, sender, verified) => {

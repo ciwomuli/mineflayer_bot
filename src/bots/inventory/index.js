@@ -90,6 +90,7 @@ class InventoryBot {
             if (disconnected || bot !== this.bot) return;
             console.log(`[InventoryBot] ${bot.username} 初始化完成，开始工作`);
             initPathfinder(bot);
+            bot.playerService.startTrackingJoins();
 
         });
 
