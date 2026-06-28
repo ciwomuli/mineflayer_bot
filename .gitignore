@@ -7,3 +7,5 @@ data/*
 .env
 inventory.db
 config.js
+syncmatica/
+placements.json

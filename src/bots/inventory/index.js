@@ -11,8 +11,9 @@ const { KeepAliveService } = require('../../service/KeepAliveService');
 const { PlayerService } = require('../../service/PlayerService');
 const { FakePlayerService } = require('../../service/FakePlayerService');
 const { TaskQueueService } = require('../../service/TaskQueueService');
+const { LitematicaService } = require('../../service/LitematicaService');
 const { sleep } = require('../../utils');
-const { initPathfinder } = require('../../goto');
+const { initPathfinder,gotoNear } = require('../../goto');
 class InventoryBot {
     constructor(options) {
         this.username = options.username;
@@ -21,6 +22,7 @@ class InventoryBot {
         this.loginDelay = options.loginDelay || 1000;
         this.startupCommands = options.startupCommands || [];
         this.config = options.config || {};
+        this.version = options.version || '1.21.4';
         this.bot = null;
     }
     async initBot() {
@@ -29,13 +31,16 @@ class InventoryBot {
             host: this.host,
             port: this.port,
             username: this.username,
+            version: this.version
         });
+        this.bot.version = this.version;
         this.bot.containerService = new ContainerService(this.bot, this.config);
         this.bot.deliverService = new DeliverService(this.bot, this.config);
         this.bot.keepAliveService = new KeepAliveService(this.bot, this.config);
         this.bot.playerService = new PlayerService(this.bot, this.config);
         this.bot.fakePlayerService = new FakePlayerService(this.bot, this.config);
         this.bot.taskQueueService = new TaskQueueService(this.bot);
+        this.bot.litematicaService = new LitematicaService(this.bot, this.config);
         setInterval(() => {
             this.bot.taskQueueService.addTask(async () => {
                 this.bot.containerService.startScanning().catch(err => {

@@ -202,19 +202,43 @@ class ContainerService {
                 return true;
             });
         }
-        const sortByZFirst = areaName === 'east' || areaName === 'west';
-        listArea = listArea
-            .map(container => ({
-                container,
-                standPos: this.bot.deliverService.getStandPos(container.x, container.y, container.z)
-            }))
-            .sort((a, b) => sortByZFirst
-                ? a.standPos.z - b.standPos.z || a.standPos.x - b.standPos.x
-                : a.standPos.x - b.standPos.x || a.standPos.z - b.standPos.z)
-            .map(({ container }) => container);
+        listArea.sort((a, b) => this.compareContainerScanOrder(a, b, areaName, areaName));
 
         this.containerList.push(...listArea);
     }
+
+    getContainerAreaName(container) {
+        if (!container) return null;
+        for (const [areaName, bounds] of Object.entries(this.areas)) {
+            const [start, end] = bounds;
+            if (container.x >= Math.min(start.x, end.x) && container.x <= Math.max(start.x, end.x) &&
+                container.y >= Math.min(start.y, end.y) && container.y <= Math.max(start.y, end.y) &&
+                container.z >= Math.min(start.z, end.z) && container.z <= Math.max(start.z, end.z)) {
+                return areaName;
+            }
+        }
+        return null;
+    }
+
+    getContainerScanKey(container, areaName = this.getContainerAreaName(container)) {
+        if (!container) return [Number.POSITIVE_INFINITY, 0, 0];
+        const areaNames = Object.keys(this.areas);
+        const areaIndex = areaName === null ? Number.POSITIVE_INFINITY : areaNames.indexOf(areaName);
+        const standPos = this.bot.deliverService.getStandPos(container.x, container.y, container.z);
+        const sortByZFirst = areaName === 'east' || areaName === 'west';
+        return [
+            areaIndex < 0 ? Number.POSITIVE_INFINITY : areaIndex,
+            sortByZFirst ? standPos.z : standPos.x,
+            sortByZFirst ? standPos.x : standPos.z
+        ];
+    }
+
+    compareContainerScanOrder(a, b, areaNameA, areaNameB) {
+        const keyA = this.getContainerScanKey(a, areaNameA);
+        const keyB = this.getContainerScanKey(b, areaNameB);
+        return keyA[0] - keyB[0] || keyA[1] - keyB[1] || keyA[2] - keyB[2];
+    }
+
     buildContainerList() {
         this.containerList = [];
         console.log(this.areas);
@@ -223,7 +247,7 @@ class ContainerService {
         }
     }
     async scanLoop() {
-        const mcData = require('minecraft-data')('1.21.4');
+        const mcData = require('minecraft-data')(this.bot.version);
         while (this.containerList.length > 0) {
             const container = this.containerList.shift();
             if (!container) continue;
@@ -279,6 +303,7 @@ class ContainerService {
         await this.scanLoop();
         db.recalculateItemTotals(this.config.center.x, this.config.center.z, true);
         console.log('[扫描] 扫描完成');
+        await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
     }
 
     getContainerTypes() {

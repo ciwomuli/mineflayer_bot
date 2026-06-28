@@ -6,9 +6,10 @@ const config = {
             host: "frp.uestc.world",
             port: 25565,
             loginDelay: 1000,
+            version: "1.21.4",
             startupCommands: [
                 "/login 123456",
-                "/server survival",
+                "/server mirror",
             ],
             config: {
                 restockGoldenCarrots: true,
@@ -47,6 +48,12 @@ const config = {
                 gotoPathTimeoutMs: 30000,
                 deliverNum: 5,
                 scanIntervalMs: 24 * 60 * 60 * 1000,
+                packingBox: { x: -306, y: 79, z: 1223 },
+                packingSwitch: { x: -305, y: 78, z: 1222 },
+                packingChest: { x: -304, y: 77, z: 1223 },
+                packingStanding: { x: -303, y: 77, z: 1223 },
+                syncMaticaPath: './syncmatica/',
+                syncMaticaJsonPath: './placements.json'
             }
         }
     ]

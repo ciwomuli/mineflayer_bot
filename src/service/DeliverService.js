@@ -8,6 +8,7 @@ class DeliverService {
         this.config = config;
         this.busy = false;
         this.delivers = [];
+        this.full = false;
         for (let i = 0; i < this.config.deliverNum; i++) {
             this.delivers.push("deliver_" + (i + 1));
         }
@@ -97,8 +98,9 @@ class DeliverService {
             availableItems.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
             availableshulkerBox.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
             while (quantity > 0 && (availableItems.length > 0 || availableshulkerBox.length > 0)) {
-                const emptySlot = container.firstEmptySlotRange(container.inventoryStart, container.inventoryEnd);
+                const emptySlot = container.firstEmptySlotRange(container.inventoryStart, container.inventoryEnd - 9);
                 if (emptySlot == null) {
+                    this.full = true;
                     break;
                 }
                 usedSlots.push(emptySlot - container.inventoryStart);
@@ -193,7 +195,8 @@ class DeliverService {
                     usedSlots = usedSlots.concat(usedSlots_tmp);
                     await sleep(2000);
                     if (quantity == rawQuantity) {
-                        console.log(`[DeliverService] 容器 (${container_item.x}, ${container_item.y}, ${container_item.z}) 中没有足够的 ${id}`);
+                        if (!this.full)
+                            console.log(`[DeliverService] 容器 (${container_item.x}, ${container_item.y}, ${container_item.z}) 中没有足够的 ${id}`);
                         break;
                     }
                 } else {
@@ -226,6 +229,141 @@ class DeliverService {
         this.delivers.push(fakePlayerName);
         await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
     }
+
+    async stocking(itemList, carrierName) {
+        const containerService = this.bot.containerService;
+        const sortableItems = itemList.map((item, index) => ({
+            item,
+            index,
+            container: db.findContainersWithItem(item.id).find(container => container.count > 0) || null
+        }));
+        sortableItems.sort((a, b) =>
+            containerService.compareContainerScanOrder(a.container, b.container) || a.index - b.index
+        );
+        itemList.splice(0, itemList.length, ...sortableItems.map(({ item }) => item));
+
+        console.log(itemList);
+        await this.bot.playerService.clearInventory();
+        let lackList = [];
+        this.full = false;
+        let first = true;
+        let carrierId = 1;
+        while (itemList.length > 0) {
+            const { id, count } = itemList[0];
+            let { quantity, usedSlots } = await this.fetchItem(id, count, true);
+            if (quantity <= 0) itemList.shift();
+            else if (quantity == count && !this.full) {
+                lackList.push({ id, count });
+                itemList.shift();
+            } else {
+                itemList[0].count = quantity;
+            }
+            if (this.full) {
+                if (await this.packing(carrierName + '_' + carrierId, first, false)) {
+                    carrierId++;
+                }
+                first = false;
+                this.full = false;
+            }
+        }
+        if (await this.packing(carrierName + '_' + carrierId, first, true)) {
+            carrierId++;
+            await this.packing(carrierName + '_' + carrierId, first, true);
+        }
+        await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
+        return lackList;
+    }
+
+    async packing(carrierName, first = false, last = false) {
+        await gotoNear(this.bot, this.config.packingStanding.x, this.config.packingStanding.y, this.config.packingStanding.z, 1);
+        const boxBlock = this.bot.world.getBlock(new Vec3(this.config.packingBox.x, this.config.packingBox.y, this.config.packingBox.z));
+        const switchBlock = this.bot.world.getBlock(new Vec3(this.config.packingSwitch.x, this.config.packingSwitch.y, this.config.packingSwitch.z));
+        const chestBlock = this.bot.world.getBlock(new Vec3(this.config.packingChest.x, this.config.packingChest.y, this.config.packingChest.z));
+        if (!boxBlock || !switchBlock || !chestBlock) {
+            console.error(`[DeliverService] 打包点的箱子、开关或箱子不存在`);
+            return false;
+        }
+        let chestUsedSlots = [];
+        if (first) {
+            const packingBox = await this.bot.openContainer(boxBlock);
+            let hasItems = false;
+            for (let i = 0; i < 27; i++) {
+                if (packingBox.slots[i] != null) {
+                    hasItems = true;
+                    break;
+                }
+            }
+            packingBox.close();
+            if (hasItems) {
+                await this.bot.activateBlock(switchBlock);
+                await sleep(2000);
+                const packingChest = await this.bot.openContainer(chestBlock);
+                for (let i = 0; i < 27; i++) {
+                    if (packingChest.slots[i] != null) {
+                        chestUsedSlots.push(i);
+                    }
+                }
+                packingChest.close();
+            }
+        }
+        const packingBox = await this.bot.openContainer(boxBlock);
+        let boxFull = false;
+        let boxEmpty = true;
+        for (let i = 0; i < 27; i++) {
+            if (packingBox.slots[i] == null) {
+                for (let j = 27; j < 54; j++) {
+                    if (packingBox.slots[j] != null && !packingBox.slots[j].name.includes("shulker_box")) {
+                        await this.bot.simpleClick.leftMouse(j);
+                        await this.bot.simpleClick.leftMouse(i);
+                        boxEmpty = false;
+                        if (i == 26) {
+                            boxFull = true;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        packingBox.close();
+        if (boxFull || last) {
+            await this.bot.activateBlock(switchBlock);
+            await sleep(2000);
+            const packingChest = await this.bot.openContainer(chestBlock);
+            for (let i = 0; i < 27; i++) {
+                if (packingChest.slots[i] != null && packingChest.slots[i].name.includes("shulker_box") && !chestUsedSlots.includes(i)) {
+                    const emptySlot = packingChest.firstEmptySlotRange(packingChest.inventoryStart, packingChest.inventoryEnd - 9);
+                    if (emptySlot != null) {
+                        await this.bot.simpleClick.leftMouse(i);
+                        await this.bot.simpleClick.leftMouse(emptySlot);
+                    }
+                }
+            }
+            packingChest.close();
+        }
+        const carrier = await this.bot.fakePlayerService.spawnFakePlayer(carrierName);
+        await sleep(2000);
+        const carrierContainer = await this.bot.openContainer(carrier.entity);
+        let carrierFull = true;
+        for (let i = 18; i < 18 + 27; i++) {
+            if (carrierContainer.slots[i] == null) {
+                carrierFull = false;
+                for (let j = 54; j < 54 + 27; j++) {
+                    if (carrierContainer.slots[j] != null && carrierContainer.slots[j].name.includes("shulker_box")) {
+                        await this.bot.simpleClick.leftMouse(j);
+                        await this.bot.simpleClick.leftMouse(i);
+                        break;
+                    }
+                }
+            }
+        }
+        carrierContainer.close();
+        await this.bot.fakePlayerService.killFakePlayer(carrierName);
+        if (carrierFull) {
+            return true;
+        }
+        return false;
+    }
+
     getStandPos(x, y, z) {
         // 判断点是否属于某个区域
         let matchedArea = null;

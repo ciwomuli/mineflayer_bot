@@ -6,6 +6,8 @@ class FakePlayerService {
     async spawnFakePlayer(name, pos = null) {
         return new Promise((resolve) => {
             if (pos) {
+                if (pos.dimension == "Nether") pos.dimension = "the_nether";
+                if (pos.dimension == "End") pos.dimension = "the_end";
                 this.bot.chat(`/player ${name} spawn at ${pos.x} ${pos.y} ${pos.z} facing 0 0 in minecraft:${pos.dimension}`);
             } else {
                 this.bot.chat(`/player ${name} spawn`);

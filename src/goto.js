@@ -6,7 +6,7 @@ const DEFAULT_TIMEOUT_MS = 30000;
 
 function initPathfinder(bot) {
     bot.loadPlugin(pathfinder);
-    const mcData = require('minecraft-data')('1.21');
+    const mcData = require('minecraft-data')(bot.version);
     const defaultMove = new Movements(bot, mcData);
     defaultMove.canDig = false;
     bot.pathfinder.setMovements(defaultMove);

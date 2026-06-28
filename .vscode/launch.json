@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "npm start",
       "type": "node",
@@ -26,6 +27,15 @@
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/src/index.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "直接调试 test.js",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/test.js",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]

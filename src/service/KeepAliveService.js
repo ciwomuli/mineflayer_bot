@@ -1,4 +1,3 @@
-const mcData = require('minecraft-data')('1.21');
 const { gotoNear } = require('../goto');
 class KeepAliveService {
     constructor(bot, config) {
