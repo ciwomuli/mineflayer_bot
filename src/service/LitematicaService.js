@@ -27,7 +27,8 @@ class LitematicaService {
             'minecraft:moving_piston',
             'minecraft:nether_portal',
             'minecraft:end_portal',
-            'minecraft:end_gateway'
+            'minecraft:end_gateway',
+            'minecraft:bedrock',
         ],
 
         mappings: {
@@ -37,6 +38,8 @@ class LitematicaService {
             'minecraft:redstone_wall_torch': 'minecraft:redstone_torch',
             'minecraft:wall_torch': 'minecraft:torch',
             'minecraft:bubble_column': 'minecraft:ice',
+            "minecraft:redstone_wire": "minecraft:redstone",
+            "minecraft:tripwire": "minecraft:string",
         },
 
         fluid_buckets: {

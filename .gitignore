@@ -9,3 +9,5 @@ inventory.db
 config.js
 syncmatica/
 placements.json
+scan_container.js
+containers.json

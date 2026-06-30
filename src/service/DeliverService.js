@@ -91,7 +91,7 @@ class DeliverService {
             for (const slot of slots) {
                 if (slot.name == id) {
                     availableItems.push([slot.slot, slot.count]);
-                } else if (slot.name.includes('shulker_box')) {
+                } else if (slot.name.includes('shulker_box') && slot?.components[0]?.data?.contents) {
                     availableshulkerBox.push([slot.slot, countShulkerBox(slot, id)]);
                 }
             }
@@ -149,7 +149,7 @@ class DeliverService {
             db.saveToDisk();
             return { quantity, usedSlots };
         } catch (err) {
-            console.error(`[DeliverService] 获取物品失败: ${err.message}`);
+            console.error(`[DeliverService] 获取物品失败: ${err.stack}`);
             return { quantity, usedSlots: [] };
         }
     }
@@ -204,6 +204,9 @@ class DeliverService {
                     break;
                 }
             }
+        } else {
+            console.log(`[DeliverService] 找到多个容器包含 ${id}，请检查数据库`);
+            console.log(containers);
         }
         return { quantity, usedSlots };
     }

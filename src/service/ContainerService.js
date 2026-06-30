@@ -283,7 +283,10 @@ class ContainerService {
                 if (itemMap.size > 1) {
                     console.log(`[NBT解析] 存在杂箱, size=${itemMap.size}, items = ${JSON.stringify([...itemMap])},pos = (${container.x},${container.y},${container.z})`);
                 }
-                if (itemMap.size === 0) continue;
+                if (itemMap.size === 0) {
+                    db.upsertContainerItem(container.x, container.y, container.z, "", 0);
+                    continue;
+                }
                 const [maxKey, maxCount] = [...itemMap].reduce(
                     (max, entry) => entry[1] > max[1] ? entry : max,
                     [null, 0]

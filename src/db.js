@@ -305,13 +305,21 @@ function updateContainerItem(x, y, z, minecraftId, delta, save = false) {
  * @param {number} count
  */
 function upsertContainerItem(x, y, z, minecraftId, count, save = false) {
+    if (count < 0) count = 0;
+    if (count === 0) {
+        // 如果数量为 0，则删除该容器记录
+        db.run('DELETE FROM containers WHERE x = ? AND y = ? AND z = ?', [x, y, z]);
+        if (save) saveToDisk();
+        return;
+    }
     db.run(
         `INSERT INTO containers (x, y, z, minecraft_id, count, updated_at)
          VALUES (?, ?, ?, ?, ?, datetime('now'))
          ON CONFLICT(x, y, z) DO UPDATE SET
+             minecraft_id = ?,
              count = ?,
              updated_at = datetime('now')`,
-        [x, y, z, minecraftId, count, count]
+        [x, y, z, minecraftId, count, minecraftId, count]
     );
     if (save) saveToDisk();
 }
