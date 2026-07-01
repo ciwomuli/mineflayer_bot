@@ -7,11 +7,7 @@ class DeliverService {
         this.bot = bot;
         this.config = config;
         this.busy = false;
-        this.delivers = [];
         this.full = false;
-        for (let i = 0; i < this.config.deliverNum; i++) {
-            this.delivers.push("deliver_" + (i + 1));
-        }
         this.using_delivers = [];
         this.bot.on('chat', this.handleDeliverRequest.bind(this));
         this.bot.on('whisper', this.handleDeliverRequest.bind(this));
@@ -212,7 +208,20 @@ class DeliverService {
     }
 
     async DeliverItem(username, id, quantity) {
-        this.bot.whisper(username, `正在为你交付 ${quantity} 个 ${id}，请稍等`);
+        if (!this.delivers) {
+            this.delivers = [];
+            for (let i = 0; i < this.config.deliverNum; i++) {
+                if (!this.bot.players["deliver_" + (i + 1)]) {
+                    this.delivers.push("deliver_" + (i + 1));
+                } else {
+                    this.using_delivers.push("deliver_" + (i + 1));
+                }
+            }
+        }
+        const target = this.functionTarget(username);
+        const safeQuantity = this.functionInteger(quantity, 'quantity');
+        const itemId = this.functionJsonString(id);
+        this.bot.chat(`/function litematica_messages:deliver_start {target:${target},quantity:${safeQuantity},id:${itemId}}`);
         let { quantity: unfetchedQuantity, usedSlots } = await this.fetchItem(id, quantity, true);
         let pos = await this.bot.playerService.getPlayerPosition(username);
         pos.y += 1; // 提升一格，避免假人卡在地面
@@ -227,10 +236,32 @@ class DeliverService {
         await this.bot.fakePlayerService.killFakePlayer(fakePlayerName);
         await this.bot.fakePlayerService.spawnFakePlayer(fakePlayerName, pos);
         this.using_delivers.push(fakePlayerName);
-        this.bot.whisper(username, `已将 ${quantity - unfetchedQuantity}/${quantity} 个 ${id} 交付给你，请在假人 ${fakePlayerName} 处领取`);
+        const deliveredQuantity = quantity - unfetchedQuantity;
+        const safeDeliveredQuantity = this.functionInteger(deliveredQuantity, 'deliveredQuantity');
+        const safeFakePlayerName = this.functionTarget(fakePlayerName);
+        this.bot.chat(`/function litematica_messages:deliver_complete {target:${target},deliveredQuantity:${safeDeliveredQuantity},quantity:${safeQuantity},id:${itemId},fakePlayerName:${safeFakePlayerName}}`);
         this.bot.chat(`/tellraw ${username} ["",{"text":"记得【"},{"text":"杀死假人","bold":true,"underlined":true,"color":"dark_red","clickEvent":{"action":"run_command","value":"/player ${fakePlayerName} kill"}},{"text":"】"}]`)
         this.delivers.push(fakePlayerName);
         await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
+    }
+
+    functionTarget(value) {
+        const target = String(value);
+        if (!/^[A-Za-z0-9_]{1,16}$/.test(target)) {
+            throw new Error(`无效的玩家名: ${target}`);
+        }
+        return target;
+    }
+
+    functionInteger(value, name) {
+        const number = Number(value);
+        if (!Number.isSafeInteger(number)) throw new Error(`${name} 必须是安全整数`);
+        return number;
+    }
+
+    functionJsonString(value) {
+        const escapedForJsonComponent = JSON.stringify(String(value)).slice(1, -1);
+        return JSON.stringify(escapedForJsonComponent);
     }
 
     async stocking(itemList, carrierName) {

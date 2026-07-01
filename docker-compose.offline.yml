@@ -1,11 +1,6 @@
 services:
   inventory-bot:
     image: ${IMAGE_NAME:-mineflayer-bot:1.0.0}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
     container_name: mineflayer-inventory-bot
     restart: unless-stopped
     init: true

@@ -11,3 +11,5 @@ syncmatica/
 placements.json
 scan_container.js
 containers.json
+dist
+*.zip

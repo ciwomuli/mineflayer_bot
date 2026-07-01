@@ -4,4 +4,10 @@ node_modules
 .vscode
 data
 syncmatica
+config.js
+placements.json
+containers.json
+dist
+test.js
 npm-debug.log*
+datapacks

@@ -1,7 +1,7 @@
 # litematica_messages
 
-适用于 Minecraft Java 1.21.4。这个数据包保存 `sendPlacement` 和
-`sendPagination` 的长 `tellraw`，机器人只发送较短的 `/function` 命令。
+适用于 Minecraft Java 1.21.4。这个数据包保存原理图和物品交付相关的长
+`tellraw`，机器人只发送较短的 `/function` 命令。
 
 ## 安装
 
@@ -28,3 +28,5 @@ Node 端会自动调用以下函数：
 - `litematica_messages:pagination_next`
 - `litematica_messages:pagination_previous`
 - `litematica_messages:pagination_single`
+- `litematica_messages:deliver_start`
+- `litematica_messages:deliver_complete`
