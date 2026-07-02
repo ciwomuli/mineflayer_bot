@@ -340,47 +340,47 @@ class DeliverService {
                 packingChest.close();
             }
         }
-        const packingBox = await this.bot.openContainer(boxBlock);
         let boxFull = false;
-        let boxEmpty = true;
-        for (let i = 0; i < 27; i++) {
-            if (packingBox.slots[i] == null) {
-                for (let j = 27; j < 54; j++) {
-                    if (packingBox.slots[j] != null && !packingBox.slots[j].name.includes("shulker_box")) {
-                        await this.bot.simpleClick.leftMouse(j);
-                        await this.bot.simpleClick.leftMouse(i);
-                        boxEmpty = false;
-                        if (i == 26) {
-                            boxFull = true;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        packingBox.close();
-        if (boxFull || last) {
-            await this.bot.activateBlock(switchBlock);
-            await sleep(2000);
-            const packingChest = await this.bot.openContainer(chestBlock);
+        do {
+            const packingBox = await this.bot.openContainer(boxBlock);
+            boxFull = false;
             for (let i = 0; i < 27; i++) {
-                if (packingChest.slots[i] != null && packingChest.slots[i].name.includes("shulker_box") && !chestUsedSlots.includes(i)) {
-                    const emptySlot = packingChest.firstEmptySlotRange(packingChest.inventoryStart, packingChest.inventoryEnd - 9);
-                    if (emptySlot != null) {
-                        await this.bot.simpleClick.leftMouse(i);
-                        await this.bot.simpleClick.leftMouse(emptySlot);
+                if (packingBox.slots[i] == null) {
+                    for (let j = 27; j < 54; j++) {
+                        if (packingBox.slots[j] != null && !packingBox.slots[j].name.includes("shulker_box")) {
+                            await this.bot.simpleClick.leftMouse(j);
+                            await this.bot.simpleClick.leftMouse(i);
+                            if (i == 26) {
+                                boxFull = true;
+                            }
+                            break;
+                        }
                     }
                 }
             }
-            packingChest.close();
-        }
+            packingBox.close();
+            if (boxFull || last) {
+                await this.bot.activateBlock(switchBlock);
+                await sleep(2000);
+                const packingChest = await this.bot.openContainer(chestBlock);
+                for (let i = 0; i < 27; i++) {
+                    if (packingChest.slots[i] != null && packingChest.slots[i].name.includes("shulker_box") && !chestUsedSlots.includes(i)) {
+                        const emptySlot = packingChest.firstEmptySlotRange(packingChest.inventoryStart, packingChest.inventoryEnd - 9);
+                        if (emptySlot != null) {
+                            await this.bot.simpleClick.leftMouse(i);
+                            await this.bot.simpleClick.leftMouse(emptySlot);
+                        }
+                    }
+                }
+                packingChest.close();
+            }
+        } while (boxFull);
         const carrier = await this.bot.fakePlayerService.spawnFakePlayer(carrierName);
         await sleep(2000);
         const carrierContainer = await this.bot.openContainer(carrier.entity);
         let carrierFull = true;
         for (let i = 18; i < 18 + 27; i++) {
             if (carrierContainer.slots[i] == null) {
-                carrierFull = false;
                 for (let j = 54; j < 54 + 27; j++) {
                     if (carrierContainer.slots[j] != null && carrierContainer.slots[j].name.includes("shulker_box")) {
                         await this.bot.simpleClick.leftMouse(j);
@@ -388,6 +388,12 @@ class DeliverService {
                         break;
                     }
                 }
+            }
+        }
+        for (let i = 18; i < 18 + 27; i++) {
+            if (carrierContainer.slots[i] == null) {
+                carrierFull = false;
+                break;
             }
         }
         carrierContainer.close();

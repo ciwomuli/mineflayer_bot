@@ -473,8 +473,8 @@ class LitematicaService {
     async sendPlacement(username, { placement, index }) {
         const fileName = String(placement.file_name || '(未命名)').replace(/\.litematic$/i, '');
         const fileNameCharacters = Array.from(fileName);
-        const displayName = fileNameCharacters.length > 20
-            ? fileNameCharacters.slice(-20).join('')
+        const displayName = fileNameCharacters.length > 15
+            ? fileNameCharacters.slice(-15).join('')
             : fileName;
         const target = this.functionTarget(username);
         const botName = this.functionTarget(this.bot.username);

@@ -97,6 +97,7 @@ class FakePlayerService {
             }
             if (freeSlots.length < usedSlots.length) {
                 console.error(`[FakePlayerService] 玩家 ${player.username} 的空闲槽位不足，无法清空物品`);
+                container.close();
                 return;
             }
             for (let i = 0; i < usedSlots.length; i++) {
@@ -105,7 +106,7 @@ class FakePlayerService {
                 await this.bot.simpleClick.leftMouse(usedSlot);
                 await this.bot.simpleClick.leftMouse(freeSlot);
             }
-
+            container.close();
         } catch (err) {
             console.error(`[FakePlayerService] 打开假人容器失败: ${err.stack}`);
         }

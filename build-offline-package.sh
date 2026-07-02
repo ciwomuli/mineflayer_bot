@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-IMAGE_NAME="mineflayer-bot:1.0.1"
+IMAGE_NAME="mineflayer-bot:1.0.2"
 BUNDLE_NAME="mineflayer-bot-offline"
 PLATFORM="linux/amd64"
 

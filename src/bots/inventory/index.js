@@ -13,7 +13,7 @@ const { FakePlayerService } = require('../../service/FakePlayerService');
 const { TaskQueueService } = require('../../service/TaskQueueService');
 const { LitematicaService } = require('../../service/LitematicaService');
 const { sleep } = require('../../utils');
-const { initPathfinder,gotoNear } = require('../../goto');
+const { initPathfinder, gotoNear } = require('../../goto');
 class InventoryBot {
     constructor(options) {
         this.username = options.username;
@@ -95,6 +95,8 @@ class InventoryBot {
         });
 
         bot.on('spawn', () => {
+            this.bot.inventory.on('updateSlot', (slot, oldItem, newItem) => { });
+            console.log(`[InventoryBot] ${bot.username} 已出生，开始监听物品栏更新`);
             if (bot !== this.bot) return;
             this.reconnectDelay = this.initialReconnectDelay;
             this.clearReconnectTimer();
