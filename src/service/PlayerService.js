@@ -60,7 +60,8 @@ class PlayerService {
                 const regex = new RegExp(`${name} @ (.+) \\[(-?\\d+), (-?\\d+), (-?\\d+)\\] \\[`);
                 const match = msgText.match(regex);
                 if (match) {
-                    const dimension = match[1].split('.').pop();
+                    console.log(match)
+                    const dimension = match[1] == "The End" ? "End" : match[1].split('.').pop();
                     const x = parseInt(match[2], 10);
                     const y = parseInt(match[3], 10);
                     const z = parseInt(match[4], 10);

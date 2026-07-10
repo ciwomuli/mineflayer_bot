@@ -338,7 +338,10 @@ class LitematicaService {
                 await this.commandCheck(username, args);
                 break;
             default:
-                await this.sendText(username, '用法: !litematica <list|stock|check>', 'yellow');
+                await this.sendText(username, '可用的 Litematica 指令：', 'yellow');
+                await this.sendText(username, '!litematica list [页码或关键词] - 浏览或搜索原理图', 'gray');
+                await this.sendText(username, '!litematica check <编号> - 检查缺少的材料', 'gray');
+                await this.sendText(username, '!litematica stock <编号> [假人名称] - 为原理图备货', 'gray');
         }
     }
 
@@ -415,12 +418,12 @@ class LitematicaService {
     async commandStock(username, args) {
         const parts = args.split(/\s+/).filter(Boolean);
         if (parts.length < 1 || parts.length > 2) {
-            await this.sendText(username, '用法: !litematica stock <编号> [carrier名字]', 'yellow');
+            await this.sendText(username, '参数错误。用法：!litematica stock <编号> [假人名称]；示例：!litematica stock 3 carrier', 'yellow');
             return;
         }
         const selected = this.getPlacement(parts[0]);
         if (!selected) {
-            await this.sendText(username, '原理图编号无效。', 'red');
+            await this.sendText(username, '原理图编号无效，请先使用 !litematica list 查看可用编号。', 'red');
             return;
         }
         const carrierName = parts[1] || this.config.litematicaCarrierName || 'carrier';
@@ -456,7 +459,7 @@ class LitematicaService {
     async commandCheck(username, args) {
         const selected = this.getPlacement(args);
         if (!selected) {
-            await this.sendText(username, '用法: !litematica check <编号>', 'yellow');
+            await this.sendText(username, '编号无效。用法：!litematica check <编号>；示例：!litematica check 3', 'yellow');
             return;
         }
         const itemList = await this.loadMaterials(selected.placement);

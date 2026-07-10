@@ -35,15 +35,17 @@ class DeliverService {
         if (message.startsWith('!deliver') || message.startsWith('!dv')) {
             const parts = message.split(' ');
             if (parts.length < 3) {
-                this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令格式错误，请使用: !deliver <物品ID> <数量>`);
-                console.log(`[InventoryBot] ${this.bot.username} 交付命令格式错误，请使用: !deliver <物品ID> <数量>`);
+                const hint = `参数不完整。用法：!deliver <物品ID或中文名> <正整数数量>（别名：!dv）；示例：!deliver minecraft:stone 64`;
+                this.bot.whisper(username, `[InventoryBot] ${this.bot.username} ${hint}`);
+                console.log(`[InventoryBot] ${this.bot.username} ${hint}`);
                 return;
             }
             let itemId = parts[1];
             const quantity = parseInt(parts[2]);
             if (isNaN(quantity) || quantity <= 0) {
-                this.bot.whisper(username, `[InventoryBot] ${this.bot.username} 交付命令数量错误，请使用正整数`);
-                console.log(`[InventoryBot] ${this.bot.username} 交付命令数量错误，请使用正整数`);
+                const hint = `数量必须是正整数。用法：!deliver <物品ID或中文名> <正整数数量>；示例：!deliver 石头 64`;
+                this.bot.whisper(username, `[InventoryBot] ${this.bot.username} ${hint}`);
+                console.log(`[InventoryBot] ${this.bot.username} ${hint}`);
                 return;
             }
             if (!itemId.startsWith('minecraft:')) {
