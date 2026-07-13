@@ -12,6 +12,7 @@ const { PlayerService } = require('../../service/PlayerService');
 const { FakePlayerService } = require('../../service/FakePlayerService');
 const { TaskQueueService } = require('../../service/TaskQueueService');
 const { LitematicaService } = require('../../service/LitematicaService');
+const { ServerService } = require('../../service/ServerService');
 const { sleep } = require('../../utils');
 const { initPathfinder, gotoNear } = require('../../goto');
 class InventoryBot {
@@ -21,6 +22,9 @@ class InventoryBot {
         this.port = options.port;
         this.loginDelay = options.loginDelay || 1000;
         this.startupCommands = options.startupCommands || [];
+        this.targetServer = options.targetServer || '';
+        this.availableServers = options.availableServers || [];
+        this.loginCommand = options.loginCommand || '';
         this.config = options.config || {};
         this.version = options.version || '1.21.4';
         this.bot = null;
@@ -63,6 +67,11 @@ class InventoryBot {
         bot.fakePlayerService = new FakePlayerService(bot, this.config);
         bot.taskQueueService = new TaskQueueService(bot);
         bot.litematicaService = new LitematicaService(bot, this.config);
+        bot.serverService = new ServerService(bot, {
+            targetServer: this.targetServer,
+            availableServers: this.availableServers,
+            loginCommand: this.loginCommand
+        });
         const buffer = new SharedArrayBuffer(16);
         const uint8 = new Uint8Array(buffer);
         Atomics.exchange(uint8, 0, 0);
@@ -91,6 +100,7 @@ class InventoryBot {
             console.log(`[InventoryBot] ${bot.username} 初始化完成，开始工作`);
             initPathfinder(bot);
             bot.playerService.startTrackingJoins();
+            bot.serverService.start();
 
         });
 

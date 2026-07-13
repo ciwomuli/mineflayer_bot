@@ -7,10 +7,10 @@ const config = {
             port: 25565,
             loginDelay: 1000,
             version: "1.21.4",
-            startupCommands: [
-                "/login 123456",
-                "/server survival",
-            ],
+            loginCommand: "/login 123456",
+            targetServer: "survival",
+            availableServers: ["creative", "mirror", "survival"],
+            startupCommands: [],
             config: {
                 restockGoldenCarrots: true,
                 firstJoinMessage: "欢迎使用库存管理 Bot，使用!dv享受快递服务，使用!litematica进行快速备货，使用群里的魔改版REI可更高效地获取快递",
