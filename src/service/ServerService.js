@@ -1,5 +1,5 @@
 class ServerService {
-    static LOGIN_PROMPT = 'Use /login, /l to authenticate!';
+    static LOGIN_PROMPT = '/login';
 
     constructor(bot, options = {}) {
         this.bot = bot;

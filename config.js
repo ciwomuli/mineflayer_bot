@@ -7,7 +7,7 @@ const config = {
             port: 25565,
             loginDelay: 1000,
             version: "1.21.4",
-            loginCommand: "/login 123456",
+            loginCommand: "/login Aa123456!",
             targetServer: "survival",
             availableServers: ["creative", "mirror", "survival"],
             startupCommands: [],
@@ -54,6 +54,26 @@ const config = {
                 packingStanding: { x: -303, y: 77, z: 1223 },
                 syncMaticaPath: './syncmatica/',
                 syncMaticaJsonPath: './placements.json'
+            }
+        },
+        {
+            // Disabled by default so it does not compete with the inventory bot.
+            // Start it with: npm run start:monitor
+            enabled: false,
+            type: "monitor",
+            username: "test_1",
+            host: "frp.uestc.world",
+            port: 25565,
+            loginDelay: 5000,
+            version: "1.21.4",
+            loginCommand: "/login 123456",
+            targetServer: "mirror",
+            availableServers: ["creative", "mirror", "survival"],
+            startupCommands: [],
+            config: {
+                csvPath: "data/light-queue-monitor-numeric.csv",
+                sampleIntervalMs: 1000,
+                infoIntervalMs: 60000
             }
         }
     ]

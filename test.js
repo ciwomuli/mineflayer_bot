@@ -1,5 +1,6 @@
 const mineflayer = require('mineflayer');
 const { ServerService } = require('./src/service/ServerService');
+const { attachProtocolDiagnostics } = require('./src/utils');
 
 const bot = mineflayer.createBot({
     host: process.env.MC_HOST || 'frp.uestc.world',
@@ -7,6 +8,7 @@ const bot = mineflayer.createBot({
     username: process.env.MC_USERNAME || 'Elysia',
     version: process.env.MC_VERSION || '1.21.4'
 });
+attachProtocolDiagnostics(bot);
 
 bot.serverService = new ServerService(bot, {
     targetServer: process.env.MC_TARGET_SERVER || 'survival',

@@ -13,7 +13,7 @@ const { FakePlayerService } = require('../../service/FakePlayerService');
 const { TaskQueueService } = require('../../service/TaskQueueService');
 const { LitematicaService } = require('../../service/LitematicaService');
 const { ServerService } = require('../../service/ServerService');
-const { sleep } = require('../../utils');
+const { sleep, attachProtocolDiagnostics } = require('../../utils');
 const { initPathfinder, gotoNear } = require('../../goto');
 class InventoryBot {
     constructor(options) {
@@ -57,6 +57,7 @@ class InventoryBot {
             username: this.username,
             version: this.version
         });
+        attachProtocolDiagnostics(bot);
         let disconnected = false;
         this.bot = bot;
         bot.version = this.version;

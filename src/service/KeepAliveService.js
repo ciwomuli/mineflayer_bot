@@ -27,29 +27,33 @@ class KeepAliveService {
     async eatGoldenCarrots() {
         try {
             // 查找背包中的金胡萝卜
-            let goldenCarrot = this.bot.inventory.items().find(item =>
+            let goldenCarrots = this.bot.inventory.items().filter(item =>
                 item.name === 'golden_carrot'
             );
+            let goldenCarrotCount = goldenCarrots.reduce((total, item) => total + item.count, 0);
 
             // 如果金胡萝卜小于64个，先补充
-            if (!goldenCarrot || goldenCarrot.count < 32 && this.config.restockGoldenCarrots) {
+            if (goldenCarrotCount < 32 && this.config.restockGoldenCarrots) {
                 console.log('\x1b[33m%s\x1b[0m', '[保活] 金胡萝卜不足64个，开始补充...');
                 await this.bot.deliverService.fetchItem("minecraft:golden_carrot", 64, false);
                 // 重新查找
-                goldenCarrot = this.bot.inventory.items().find(item =>
+                goldenCarrots = this.bot.inventory.items().filter(item =>
                     item.name === 'golden_carrot'
                 );
+                goldenCarrotCount = goldenCarrots.reduce((total, item) => total + item.count, 0);
             }
 
-            if (!goldenCarrot) {
+            if (goldenCarrotCount === 0) {
                 console.log('\x1b[31m%s\x1b[0m', '[保活] 补充后背包中仍没有金胡萝卜！');
                 return;
             }
 
-            console.log(`\x1b[36m%s\x1b[0m`, `[保活] 找到 ${goldenCarrot.count} 个金胡萝卜`);
+            console.log(`\x1b[36m%s\x1b[0m`, `[保活] 找到 ${goldenCarrotCount} 个金胡萝卜`);
 
             // 吃金胡萝卜直到饱和度满（20.0）或没有更多金胡萝卜
-            while (this.bot.food < 20.0 && goldenCarrot.count > 0) {
+            while (this.bot.food < 20.0 && goldenCarrotCount > 0) {
+                const goldenCarrot = goldenCarrots.find(item => item.count > 0);
+                if (!goldenCarrot) break;
                 console.log(`\x1b[36m%s\x1b[0m`, `[保活] 正在吃金胡萝卜，当前饱和度: ${this.bot.foodSaturation}`);
 
                 // 装备到手上
@@ -62,16 +66,15 @@ class KeepAliveService {
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
                 // 重新查找（因为数量可能变化）
-                const updatedCarrot = this.bot.inventory.items().find(item =>
+                goldenCarrots = this.bot.inventory.items().filter(item =>
                     item.name === 'golden_carrot'
                 );
+                goldenCarrotCount = goldenCarrots.reduce((total, item) => total + item.count, 0);
 
-                if (!updatedCarrot || updatedCarrot.count === 0) {
+                if (goldenCarrotCount === 0) {
                     console.log('\x1b[33m%s\x1b[0m', '[保活] 金胡萝卜已用完');
                     break;
                 }
-
-                goldenCarrot.count = updatedCarrot.count;
             }
             await gotoNear(this.bot, this.config.center.x, this.config.center.y, this.config.center.z, 1);
             console.log(`\x1b[32m%s\x1b[0m`, `[保活] 吃完金胡萝卜，当前饱和度: ${this.bot.food}`);

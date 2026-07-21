@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "start:inventory": "node src/index.js --bots inventory",
+    "start:monitor": "node src/index.js --bots monitor",
     "test": "node --test"
   },
   "dependencies": {

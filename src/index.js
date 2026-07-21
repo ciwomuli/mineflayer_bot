@@ -5,6 +5,7 @@
 const path = require('path');
 const config = require('../config');
 const InventoryBot = require('./bots/inventory').InventoryBot;
+const { MonitorBot } = require('./bots/monitor');
 const db = require('./db');
 
 /**
@@ -25,12 +26,20 @@ async function main() {
     }
     let bots = [];
     for (const botConfig of config.bots) {
+        // A disabled bot remains available for an explicit --bots invocation.
+        if (botConfig.enabled === false && (!filterTypes || !filterTypes.includes(botConfig.type))) {
+            console.log(`[启动器] 跳过已禁用 Bot: ${botConfig.username} (类型: ${botConfig.type})`);
+            continue;
+        }
         if (filterTypes && !filterTypes.includes(botConfig.type)) {
             console.log(`[启动器] 跳过 Bot: ${botConfig.username} (类型: ${botConfig.type})`);
             continue;
         }
         if (botConfig.type === 'inventory') {
             bots.push(new InventoryBot(botConfig));
+        }
+        if (botConfig.type === 'monitor') {
+            bots.push(new MonitorBot(botConfig));
         }
     }
     for (const bot of bots) {
