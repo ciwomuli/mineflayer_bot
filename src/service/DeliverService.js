@@ -2,6 +2,7 @@ const db = require('../db');
 const Vec3 = require('vec3');
 const { sleep } = require('../utils');
 const { gotoNear } = require('../goto');
+const { countItemStack, getContainerItemCounts } = require('./containerItemCount');
 class DeliverService {
     constructor(bot, config) {
         this.bot = bot;
@@ -76,7 +77,6 @@ class DeliverService {
     }
     async fetchItemWithContainer(containerBlock, id, quantity, shulkerBox = false, quickShulkerBox = false) {
         try {
-            const rawQuantity = quantity;
             //去掉id开头的minecraft:前缀
             if (id.startsWith('minecraft:')) {
                 id = id.substring(10);
@@ -90,7 +90,10 @@ class DeliverService {
                 if (slot.name == id) {
                     availableItems.push([slot.slot, slot.count]);
                 } else if (slot.name.includes('shulker_box') && slot?.components[0]?.data?.contents) {
-                    availableshulkerBox.push([slot.slot, countShulkerBox(slot, id)]);
+                    const storedCount = countItemStack(slot, id, this.bot.registry?.items);
+                    if (storedCount > 0) {
+                        availableshulkerBox.push([slot.slot, storedCount]);
+                    }
                 }
             }
             availableItems.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
@@ -141,9 +144,19 @@ class DeliverService {
                     break;
                 }
             }
+            const remainingItems = getContainerItemCounts(container, this.bot.registry?.items);
+            const [remainingId, remainingCount] = [...remainingItems].reduce(
+                (max, entry) => entry[1] > max[1] ? entry : max,
+                [id, 0]
+            );
             container.close();
-            db.updateContainerItem(containerBlock.position.x, containerBlock.position.y, containerBlock.position.z, "minecraft:" + id, quantity - rawQuantity);
-            db.updateItemTotal("minecraft:" + id, quantity - rawQuantity, true);
+            this.bot.containerService.updateInventory(
+                containerBlock.position.x,
+                containerBlock.position.y,
+                containerBlock.position.z,
+                "minecraft:" + remainingId,
+                remainingCount
+            );
             db.saveToDisk();
             return { quantity, usedSlots };
         } catch (err) {
@@ -452,12 +465,5 @@ class DeliverService {
         return gotoNear(this.bot, standPos.x, standPos.y, standPos.z, 0);
     }
 
-}
-function countShulkerBox(slot, id) {
-    let total = 0;
-    for (const item of slot.components[0].data.contents) {
-        total += item.itemCount;
-    }
-    return total;
 }
 module.exports = { DeliverService };

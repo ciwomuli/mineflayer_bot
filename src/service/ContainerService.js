@@ -4,6 +4,7 @@ const db = require('../db');
 const Vec3 = require('vec3');
 const { sleep } = require('../utils');
 const { gotoNear } = require('../goto');
+const { getContainerItemCounts } = require('./containerItemCount');
 class ContainerService {
     constructor(bot, config) {
         this.bot = bot;
@@ -97,10 +98,14 @@ class ContainerService {
 
     updateInventory(x, y, z, minecraftId, count) {
         const containerItems = db.getContainerItems(x, y, z);
-        const oldCount = containerItems.length > 0 ? containerItems[0].count : 0;
-        const itemTotal = db.getItemTotal(minecraftId);
-        const newTotal = itemTotal - oldCount + count;
-        db.setItemTotal(minecraftId, newTotal);
+        const oldItem = containerItems[0];
+        if (oldItem && oldItem.minecraft_id !== minecraftId) {
+            db.setItemTotal(oldItem.minecraft_id, Math.max(0, db.getItemTotal(oldItem.minecraft_id) - oldItem.count));
+            db.setItemTotal(minecraftId, db.getItemTotal(minecraftId) + count);
+        } else {
+            const oldCount = oldItem ? oldItem.count : 0;
+            db.setItemTotal(minecraftId, db.getItemTotal(minecraftId) - oldCount + count);
+        }
         db.upsertContainerItem(x, y, z, minecraftId, count);
     }
 
@@ -247,7 +252,6 @@ class ContainerService {
         }
     }
     async scanLoop() {
-        const mcData = require('minecraft-data')(this.bot.version);
         while (this.containerList.length > 0) {
             const container = this.containerList.shift();
             if (!container) continue;
@@ -259,27 +263,7 @@ class ContainerService {
                     continue;
                 }
                 const chest = await this.bot.openContainer(block);
-                const slots = chest.slots || [];
-                let itemMap = new Map();
-                for (let i = 0; i < chest.inventoryStart; i++) {
-                    const slot = slots[i];
-                    if (!slot) continue;
-                    if (slot?.components[0]?.data?.contents) {
-                        for (const subItem of slot.components[0].data.contents) {
-                            if (!subItem.itemId || !subItem.itemCount) { continue; }
-                            const item = mcData.items[subItem.itemId];
-                            if (!item) {
-                                console.log(subItem);
-                                console.warn(`[扫描] 未找到物品ID ${subItem.itemId} 的名称，坐标 (${container.x}, ${container.y}, ${container.z})`);
-                                continue;
-                            }
-                            const name = item.name;
-                            itemMap.set(name, (itemMap.get(name) || 0) + subItem.itemCount);
-                        }
-                    } else {
-                        itemMap.set(slot.name, (itemMap.get(slot.name) || 0) + slot.count);
-                    }
-                }
+                const itemMap = getContainerItemCounts(chest, this.bot.registry?.items);
                 if (itemMap.size > 1) {
                     console.log(`[NBT解析] 存在杂箱, size=${itemMap.size}, items = ${JSON.stringify([...itemMap])},pos = (${container.x},${container.y},${container.z})`);
                 }

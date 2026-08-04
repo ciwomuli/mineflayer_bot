@@ -119,6 +119,29 @@ class LitematicaService {
             blockPath = blockPath.replace(/_wall_sign$/, '_sign');
             return namespace + blockPath;
         }
+        if (blockPath.endsWith('_wall_hanging_sign')) {
+            blockPath = blockPath.replace(/_wall_hanging_sign$/, '_hanging_sign');
+            return namespace + blockPath;
+        }
+
+        if (blockPath.startsWith('stripped_')) {
+            blockPath = blockPath.slice('stripped_'.length);
+            return namespace + blockPath;
+        }
+        
+        if (blockPath.startsWith('potted_')) {
+            blockPath = blockPath.slice('potted_'.length);
+            return namespace + blockPath;
+        }
+
+        if (blockPath.endsWith('_wall_banner')) {
+            blockPath = blockPath.replace(/_wall_banner$/, '_banner');
+            return namespace + blockPath;
+        }
+
+        if (blockPath == "dirt_path") {
+            return "minecraft:dirt";
+        }
 
         return LitematicaService.SPECIAL_BLOCK_RULES.mappings[blockState] || blockState;
     }
@@ -235,7 +258,7 @@ class LitematicaService {
         return usage;
     }
 
-    async parseLitematica(filePath) {
+    async parseLitematica(filePath, regionName = null) {
         try {
             const fileBuffer = fs.readFileSync(filePath);
             const { parsed } = await nbt.parse(fileBuffer);
@@ -256,7 +279,15 @@ class LitematicaService {
                 throw new Error('投影文件中未找到任何区域');
             }
 
-            for (const [regionName, region] of Object.entries(regions)) {
+            let regionEntries = Object.entries(regions);
+            if (regionName !== null) {
+                if (!Object.prototype.hasOwnProperty.call(regions, regionName)) {
+                    throw new Error(`未找到区域: ${regionName}`);
+                }
+                regionEntries = [[regionName, regions[regionName]]];
+            }
+
+            for (const [currentRegionName, region] of regionEntries) {
                 const size = region.Size || {};
                 const palette = region.BlockStatePalette || [];
                 const blockStates = region.BlockStates || [];
@@ -266,14 +297,14 @@ class LitematicaService {
 
                 console.log(
                     `\x1b[33m%s\x1b[0m`,
-                    `[区域] 名称: ${regionName}, 尺寸: ${size.x || '?'}x${size.y || '?'}x${size.z || '?'}`
+                    `[区域] 名称: ${currentRegionName}, 尺寸: ${size.x || '?'}x${size.y || '?'}x${size.z || '?'}`
                 );
 
                 if (palette.length === 0) {
-                    throw new Error(`区域 ${regionName} 的方块调色板为空`);
+                    throw new Error(`区域 ${currentRegionName} 的方块调色板为空`);
                 }
                 if (!Number.isSafeInteger(volume) || volume <= 0) {
-                    throw new Error(`区域 ${regionName} 的尺寸无效`);
+                    throw new Error(`区域 ${currentRegionName} 的尺寸无效`);
                 }
 
                 // 1. 遍历调色板，预计算每个 palette 索引对应的物品需求。
@@ -340,8 +371,8 @@ class LitematicaService {
             default:
                 await this.sendText(username, '可用的 Litematica 指令：', 'yellow');
                 await this.sendText(username, '!litematica list [页码或关键词] - 浏览或搜索原理图', 'gray');
-                await this.sendText(username, '!litematica check <编号> - 检查缺少的材料', 'gray');
-                await this.sendText(username, '!litematica stock <编号> [假人名称] - 为原理图备货', 'gray');
+                await this.sendText(username, '!litematica check <编号[:区域名]> - 检查缺少的材料', 'gray');
+                await this.sendText(username, '!litematica stock <编号[:区域名]> [假人名称] - 为原理图备货', 'gray');
         }
     }
 
@@ -356,12 +387,24 @@ class LitematicaService {
         return data.placements;
     }
 
-    getPlacement(indexText) {
-        if (!/^\d+$/.test(indexText)) return null;
-        const index = Number(indexText);
+    static parsePlacementSelector(selector) {
+        const value = String(selector);
+        const colonIndex = value.indexOf(':');
+        const indexText = colonIndex === -1 ? value : value.slice(0, colonIndex);
+        const regionName = colonIndex === -1 ? null : value.slice(colonIndex + 1);
+
+        if (!/^\d+$/.test(indexText) || (colonIndex !== -1 && !regionName)) return null;
+        return { indexText, regionName };
+    }
+
+    getPlacement(selector) {
+        const parsedSelector = LitematicaService.parsePlacementSelector(selector);
+        if (!parsedSelector) return null;
+
+        const index = Number(parsedSelector.indexText);
         const placements = this.loadPlacements();
         if (!Number.isSafeInteger(index) || index < 1 || index > placements.length) return null;
-        return { placement: placements[index - 1], index };
+        return { placement: placements[index - 1], index, regionName: parsedSelector.regionName };
     }
 
     getSchematicPath(placement) {
@@ -372,9 +415,9 @@ class LitematicaService {
         return path.resolve(this.config.syncMaticaPath, `${placement.hash}.litematic`);
     }
 
-    async loadMaterials(placement) {
+    async loadMaterials(placement, regionName = null) {
         const filePath = this.getSchematicPath(placement);
-        const result = await this.parseLitematica(filePath);
+        const result = await this.parseLitematica(filePath, regionName);
         if (result.error) throw new Error(result.error);
         return Array.from(result.materials, ([id, count]) => ({ id, count }));
     }
@@ -418,7 +461,7 @@ class LitematicaService {
     async commandStock(username, args) {
         const parts = args.split(/\s+/).filter(Boolean);
         if (parts.length < 1 || parts.length > 2) {
-            await this.sendText(username, '参数错误。用法：!litematica stock <编号> [假人名称]；示例：!litematica stock 3 carrier', 'yellow');
+            await this.sendText(username, '参数错误。用法：!litematica stock <编号[:区域名]> [假人名称]；示例：!litematica stock 3:主区域 carrier', 'yellow');
             return;
         }
         const selected = this.getPlacement(parts[0]);
@@ -432,7 +475,7 @@ class LitematicaService {
             return;
         }
 
-        const itemList = await this.loadMaterials(selected.placement);
+        const itemList = await this.loadMaterials(selected.placement, selected.regionName);
         const task = async () => {
             try {
                 const lackList = await this.bot.deliverService.stocking(itemList, carrierName);
@@ -459,10 +502,10 @@ class LitematicaService {
     async commandCheck(username, args) {
         const selected = this.getPlacement(args);
         if (!selected) {
-            await this.sendText(username, '编号无效。用法：!litematica check <编号>；示例：!litematica check 3', 'yellow');
+            await this.sendText(username, '编号无效。用法：!litematica check <编号[:区域名]>；示例：!litematica check 3:主区域', 'yellow');
             return;
         }
-        const itemList = await this.loadMaterials(selected.placement);
+        const itemList = await this.loadMaterials(selected.placement, selected.regionName);
         console.log(itemList);
         const lackList = itemList
             .map(({ id, count }) => {
@@ -525,7 +568,8 @@ class LitematicaService {
 
     async sendLackList(username, selected, lackList) {
         const name = selected.placement.file_name || '(未命名)';
-        await this.sendText(username, `原理图 #${selected.index} ${name} 缺货名单:`, 'gold');
+        const regionLabel = selected.regionName ? ` 区域 ${selected.regionName}` : '';
+        await this.sendText(username, `原理图 #${selected.index} ${name}${regionLabel} 缺货名单:`, 'gold');
         if (!lackList || lackList.length === 0) {
             await this.sendText(username, '无缺货。', 'green');
             return;
