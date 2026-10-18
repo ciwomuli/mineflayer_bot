@@ -184,7 +184,7 @@ class ContainerService {
             ? 'z'
             : areaName === 'north' || areaName === 'south'
                 ? 'x'
-                : null;
+                : 'x';
         if (dedupeAxis && listArea.length > 1) {
             const middle = this.config.center[dedupeAxis];
             const positions = new Set(listArea.map(({ x, y, z }) => `${x},${y},${z}`));

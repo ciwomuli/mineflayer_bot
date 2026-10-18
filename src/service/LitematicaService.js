@@ -128,11 +128,6 @@ class LitematicaService {
             blockPath = blockPath.slice('stripped_'.length);
             return namespace + blockPath;
         }
-        
-        if (blockPath.startsWith('potted_')) {
-            blockPath = blockPath.slice('potted_'.length);
-            return namespace + blockPath;
-        }
 
         if (blockPath.endsWith('_wall_banner')) {
             blockPath = blockPath.replace(/_wall_banner$/, '_banner');
@@ -212,6 +207,50 @@ class LitematicaService {
             itemName,
             countPerBlock: LitematicaService.getStackSizeForBlock(itemName, properties)
         };
+    }
+
+    static getPaletteRequirements(blockState) {
+        const requirement = LitematicaService.getPaletteRequirement(blockState);
+        if (!requirement) return [];
+
+        const blockName = typeof blockState === 'object' && blockState !== null
+            ? blockState.Name
+            : blockState;
+        const namespaceEnd = blockName.indexOf(':') + 1;
+        const namespace = namespaceEnd > 0 ? blockName.slice(0, namespaceEnd) : '';
+        const blockPath = namespaceEnd > 0 ? blockName.slice(namespaceEnd) : blockName;
+
+        // 盆栽方块需要花盆和其中的植物各一个。
+        if (blockPath.startsWith('potted_')) {
+            return [
+                { itemName: `${namespace}flower_pot`, countPerBlock: 1 },
+                { itemName: `${namespace}${blockPath.slice('potted_'.length)}`, countPerBlock: 1 }
+            ];
+        }
+
+        if (blockPath == "water_cauldron") {
+            return [
+                { itemName: `${namespace}cauldron`, countPerBlock: 1 },
+                { itemName: `${namespace}ice`, countPerBlock: 1 }
+            ];
+        }
+
+        if (blockPath == "lava_cauldron") {
+            return [
+                { itemName: `${namespace}cauldron`, countPerBlock: 1 },
+                { itemName: `${namespace}lava_bucket`, countPerBlock: 1 }
+            ];
+        }
+
+        // 带蜡烛的蛋糕需要蛋糕和对应颜色的蜡烛各一个。
+        if (blockPath === 'candle_cake' || blockPath.endsWith('_candle_cake')) {
+            return [
+                { itemName: `${namespace}cake`, countPerBlock: 1 },
+                { itemName: `${namespace}${blockPath.slice(0, -'_cake'.length)}`, countPerBlock: 1 }
+            ];
+        }
+
+        return [requirement];
     }
 
     static getPaletteIndex(blockStates, entryIndex, bitsPerEntry, mask) {
@@ -309,7 +348,7 @@ class LitematicaService {
 
                 // 1. 遍历调色板，预计算每个 palette 索引对应的物品需求。
                 const paletteRequirements = palette.map(blockState =>
-                    LitematicaService.getPaletteRequirement(blockState)
+                    LitematicaService.getPaletteRequirements(blockState)
                 );
 
                 // 2. 遍历 BlockStates，统计每个 palette 索引实际出现的次数。
@@ -319,16 +358,18 @@ class LitematicaService {
                     palette.length
                 );
 
-                // 将方块出现次数乘以单方块需求量，合并到最终材料表。
+                // 将方块出现次数乘以每种材料的单方块需求量，合并到最终材料表。
                 for (let paletteIndex = 0; paletteIndex < palette.length; paletteIndex++) {
-                    const requirement = paletteRequirements[paletteIndex];
-                    if (!requirement || paletteUsage[paletteIndex] === 0) continue;
+                    const requirements = paletteRequirements[paletteIndex];
+                    if (requirements.length === 0 || paletteUsage[paletteIndex] === 0) continue;
 
-                    const requiredCount = paletteUsage[paletteIndex] * requirement.countPerBlock;
-                    materials.set(
-                        requirement.itemName,
-                        (materials.get(requirement.itemName) || 0) + requiredCount
-                    );
+                    for (const requirement of requirements) {
+                        const requiredCount = paletteUsage[paletteIndex] * requirement.countPerBlock;
+                        materials.set(
+                            requirement.itemName,
+                            (materials.get(requirement.itemName) || 0) + requiredCount
+                        );
+                    }
                 }
             }
 

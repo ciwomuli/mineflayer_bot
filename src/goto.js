@@ -4,11 +4,18 @@ const Vec3 = require('vec3');
 
 const DEFAULT_TIMEOUT_MS = 30000;
 
-function initPathfinder(bot) {
+function initPathfinder(bot, config = {}) {
     bot.loadPlugin(pathfinder);
     const mcData = require('minecraft-data')(bot.version);
     const defaultMove = new Movements(bot, mcData);
     defaultMove.canDig = false;
+    const avoidPositions = new Set((config.avoidPositions || []).map(({ x, y, z }) => `${x},${y},${z}`));
+    if (avoidPositions.size > 0) {
+        defaultMove.exclusionAreasStep.push((block) => {
+            const { x, y, z } = block.position;
+            return avoidPositions.has(`${x},${y},${z}`) ? 100 : 0;
+        });
+    }
     bot.pathfinder.setMovements(defaultMove);
 }
 

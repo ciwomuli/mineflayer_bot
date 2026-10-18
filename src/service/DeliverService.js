@@ -35,16 +35,16 @@ class DeliverService {
     async handleDeliverRequest(username, message) {
         if (message.startsWith('!deliver') || message.startsWith('!dv')) {
             const parts = message.split(' ');
-            if (parts.length < 3) {
-                const hint = `参数不完整。用法：!deliver <物品ID或中文名> <正整数数量>（别名：!dv）；示例：!deliver minecraft:stone 64`;
+            if (parts.length < 2) {
+                const hint = `参数不完整。用法：!deliver <物品ID或中文名> [正整数数量]（别名：!dv）；示例：!deliver minecraft:stone 64`;
                 this.bot.whisper(username, `[InventoryBot] ${this.bot.username} ${hint}`);
                 console.log(`[InventoryBot] ${this.bot.username} ${hint}`);
                 return;
             }
             let itemId = parts[1];
-            const quantity = parseInt(parts[2]);
+            const quantity = parts.length >= 3 ? parseInt(parts[2]) : 1;
             if (isNaN(quantity) || quantity <= 0) {
-                const hint = `数量必须是正整数。用法：!deliver <物品ID或中文名> <正整数数量>；示例：!deliver 石头 64`;
+                const hint = `数量必须是正整数。用法：!deliver <物品ID或中文名> [正整数数量]；示例：!deliver 石头 64`;
                 this.bot.whisper(username, `[InventoryBot] ${this.bot.username} ${hint}`);
                 console.log(`[InventoryBot] ${this.bot.username} ${hint}`);
                 return;
@@ -81,6 +81,8 @@ class DeliverService {
             if (id.startsWith('minecraft:')) {
                 id = id.substring(10);
             }
+            const itemStackSize = this.bot.registry.itemsByName[id]?.stackSize ?? 1;
+            const shulkerBoxThreshold = this.config.shulkerBoxThereHold * itemStackSize;
             const container = await this.bot.openContainer(containerBlock);
             const slots = container.itemsRange(0, container.inventoryStart);
             let availableItems = [];
@@ -105,7 +107,7 @@ class DeliverService {
                     break;
                 }
                 usedSlots.push(emptySlot - container.inventoryStart);
-                if (quantity > this.config.shulkerBoxThereHold && availableshulkerBox.length > 0 && shulkerBox) {
+                if (quantity > shulkerBoxThreshold && availableshulkerBox.length > 0 && shulkerBox) {
                     const [slot, count] = availableshulkerBox.shift();
                     await this.bot.simpleClick.leftMouse(slot);
                     await this.bot.simpleClick.leftMouse(emptySlot);
@@ -166,6 +168,9 @@ class DeliverService {
     }
     async fetchItem(id, quantity, shulkerBox = false) {
         const rawQuantity = quantity;
+        const itemName = id.startsWith('minecraft:') ? id.substring(10) : id;
+        const itemStackSize = this.bot.registry.itemsByName[itemName]?.stackSize ?? 1;
+        const shulkerBoxThreshold = this.config.shulkerBoxThereHold * itemStackSize;
         let containers = db.findContainersWithItem(id);
         containers = containers.filter(c => {
             if (c.count <= 0) {
@@ -178,7 +183,7 @@ class DeliverService {
         if (containers.length === 0) {
             console.log(`[DeliverService] 未找到包含 ${id} 的容器`);
             return { quantity, usedSlots: [] };
-        } else if (containers.length == 1) {
+        } else if (containers.length == 1 || (containers.length > 1 && containers[0].z > 1190)) { // 硬编码
             const container = containers[0];
             await this.goto(container.x, container.y, container.z);
             const block = this.bot.world.getBlock(new Vec3(container.x, container.y, container.z));
@@ -193,7 +198,7 @@ class DeliverService {
             const block_item = this.bot.world.getBlock(new Vec3(container_item.x, container_item.y, container_item.z));
             const block_shulker = this.bot.world.getBlock(new Vec3(container_shulker.x, container_shulker.y, container_shulker.z));
             if (block_shulker && this.bot.containerService.getContainerTypes().has(block_shulker.name)
-                && quantity > this.config.shulkerBoxThereHold && shulkerBox) {
+                && quantity > shulkerBoxThreshold && shulkerBox) {
                 await this.goto(container_shulker.x, container_shulker.y, container_shulker.z);
                 ({ quantity, usedSlots } = await this.fetchItemWithContainer(block_shulker, id, quantity, shulkerBox, false));
             }

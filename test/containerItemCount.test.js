@@ -42,3 +42,20 @@ test('parses an optional litematica region after the placement number', () => {
     assert.equal(LitematicaService.parsePlacementSelector(':主区域'), null);
     assert.equal(LitematicaService.parsePlacementSelector('three:主区域'), null);
 });
+
+test('returns every item required by a multi-item block', () => {
+    assert.deepEqual(
+        LitematicaService.getPaletteRequirements({ Name: 'minecraft:potted_dandelion' }),
+        [
+            { itemName: 'minecraft:flower_pot', countPerBlock: 1 },
+            { itemName: 'minecraft:dandelion', countPerBlock: 1 }
+        ]
+    );
+    assert.deepEqual(
+        LitematicaService.getPaletteRequirements({ Name: 'minecraft:white_candle_cake' }),
+        [
+            { itemName: 'minecraft:cake', countPerBlock: 1 },
+            { itemName: 'minecraft:white_candle', countPerBlock: 1 }
+        ]
+    );
+});
